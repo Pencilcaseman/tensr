@@ -1,4 +1,5 @@
 use rayon::prelude::*;
+use std::hint::black_box;
 use tensr::backend::host::storage;
 
 macro_rules! test_all {
@@ -201,8 +202,24 @@ macro_rules! test_slice_mut_par_iter {
     };
 }
 
+macro_rules! test_drop {
+    ($type:ty, $name:ident) => {
+        #[test]
+        fn $name() {
+            let n = 8196;
+
+            // Create a LOT of these and see if the system runs out of memory...
+            for _ in 0..10_000 {
+                let s = black_box(storage::HostStorage::<$type>::new(n));
+                drop(s);
+            }
+        }
+    };
+}
+
 test_all_fundamental!(test_alloc);
 test_all_fundamental!(test_alloc_uninit);
 test_all_fundamental!(test_as_shared);
 test_all_fundamental!(test_take_as_vec);
 test_all_fundamental!(test_simd_par_iter);
+test_all_fundamental!(test_drop);
