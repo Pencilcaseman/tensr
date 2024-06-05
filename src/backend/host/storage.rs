@@ -15,7 +15,7 @@ pub const MEM_ALIGN: usize = 64;
 pub const SIMD_WIDTH: usize = 8;
 
 /// A non-null pointer which can be used in parallel blocks
-pub struct HostNonNull<T>(NonNull<T>);
+pub struct HostNonNull<T>(pub NonNull<T>);
 unsafe impl<T> Send for HostNonNull<T> {}
 unsafe impl<T> Sync for HostNonNull<T> {}
 
@@ -60,6 +60,149 @@ pub struct SharedHostStorage<'a, T> {
 
 impl<T> OwnedStorage for HostStorage<T> {}
 impl<'a, T> SharedStorage for SharedHostStorage<'a, T> {}
+
+impl<T> HostStorage<T> {
+    /// Create a new [`HostStorage`] object with [`length`] elements, all initialized to
+    /// `T::default()`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use tensr::backend::host::storage::HostStorage;
+    ///
+    /// let host_storage = HostStorage::<f32>::new(10);
+    /// assert_eq!(host_storage.length, 10);
+    ///
+    /// for i in 0..host_storage.length {
+    ///     assert_eq!(host_storage[i], 0.0);
+    /// }
+    /// ```
+    pub fn new(length: usize) -> Self
+    where
+        T: Default,
+    {
+        unsafe {
+            let data = std::alloc::alloc(
+                std::alloc::Layout::from_size_align_unchecked(
+                    length * core::mem::size_of::<T>(),
+                    MEM_ALIGN,
+                ),
+            )
+            .cast::<T>();
+
+            // Initialise all elements to their default value
+            for i in 0..length {
+                *data.add(i) = T::default();
+            }
+
+            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
+        }
+    }
+
+    /// Create a new [`HostStorage`] object with [`length`] elements, not initializing the
+    /// memory. For trivial types, this might be fine, but for types which require
+    /// construction, this may cause problems if you are not careful.
+    ///
+    /// # Example
+    /// ```rust
+    /// use tensr::backend::host::storage::HostStorage;
+    ///
+    /// let host_storage = HostStorage::<f32>::new_uninitialized(10);
+    /// assert_eq!(host_storage.length, 10);
+    /// ```
+    pub fn new_uninitialized(length: usize) -> Self {
+        unsafe {
+            let data = std::alloc::alloc(
+                std::alloc::Layout::from_size_align_unchecked(
+                    length * core::mem::size_of::<T>(),
+                    MEM_ALIGN,
+                ),
+            )
+            .cast::<T>();
+
+            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
+        }
+    }
+
+    pub const fn as_shared(&self) -> SharedHostStorage<'_, T> {
+        SharedHostStorage {
+            ptr: self.ptr,
+            length: self.length,
+            phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn take_as_vec(&mut self) -> Vec<T> {
+        unsafe {
+            // Set length to zero so we do not free data
+            let length = self.length;
+            self.length = 0;
+            Vec::from_raw_parts(self.ptr.0.as_ptr(), length, length)
+        }
+    }
+}
+
+impl<T> HostStorage<T>
+where
+    T: std::simd::SimdElement + Send + Sync,
+{
+    /// Create a parallel iterator over SIMD elements of width [`SIMD_WIDTH`].
+    fn simd_par_iter(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = Simd<T, SIMD_WIDTH>> + '_ {
+        let simd_size = self.length / SIMD_WIDTH;
+        (0..simd_size).into_par_iter().map(move |i| {
+            Simd::<T, SIMD_WIDTH>::from_slice(
+                &self[i * SIMD_WIDTH..(i + 1) * SIMD_WIDTH],
+            )
+        })
+    }
+}
+
+impl<T> HostStorage<T>
+where
+    T: Send + Sync,
+{
+    /// Create a parallel slice iterator over slices of length `slice_size`.
+    ///
+    /// If the length of the input is nto a multiple of the slice size, the
+    /// remaining elements are ignored.
+    fn slice_par_iter(
+        &self,
+        slice_size: usize,
+    ) -> impl IndexedParallelIterator<Item = &[T]> + '_ {
+        let simd_size = self.length / slice_size;
+        (0..simd_size)
+            .into_par_iter()
+            .map(move |i| &self[i * slice_size..(i + 1) * slice_size])
+    }
+
+    /// Create a parallel mutable slice iterator with slices of length `slice_size`.
+    ///
+    /// If the length of the input is not a multiple of the slice size, the remaining
+    /// elements are ignored.
+    fn slice_mut_par_iter<'a>(
+        &'a mut self,
+        slice_size: usize,
+    ) -> impl IndexedParallelIterator<Item = &'a mut [T]> + '_ {
+        let elements = self.length / slice_size;
+        (0..elements).into_par_iter().map_init(
+            || self.ptr,
+            move |ptr, i| {
+                let start = i * slice_size;
+                let end = (i + 1) * slice_size;
+
+                let slice = unsafe {
+                    std::slice::from_raw_parts_mut(
+                        ptr.0.as_ptr().add(start),
+                        end - start,
+                    )
+                };
+
+                slice
+            },
+        )
+    }
+}
 
 impl<T> Drop for HostStorage<T> {
     fn drop(&mut self) {
@@ -262,149 +405,6 @@ impl<'a, T> std::ops::Index<std::ops::RangeInclusive<usize>>
                 self.ptr.0.as_ptr().add(*index.start()),
                 end - start + 1,
             )
-        }
-    }
-}
-
-impl<T> HostStorage<T>
-where
-    T: std::simd::SimdElement + Send + Sync,
-{
-    /// Create a parallel iterator over SIMD elements of width [`SIMD_WIDTH`].
-    fn simd_par_iter(
-        &self,
-    ) -> impl IndexedParallelIterator<Item = Simd<T, SIMD_WIDTH>> + '_ {
-        let simd_size = self.length / SIMD_WIDTH;
-        (0..simd_size).into_par_iter().map(move |i| {
-            Simd::<T, SIMD_WIDTH>::from_slice(
-                &self[i * SIMD_WIDTH..(i + 1) * SIMD_WIDTH],
-            )
-        })
-    }
-}
-
-impl<T> HostStorage<T>
-where
-    T: Send + Sync,
-{
-    /// Create a parallel slice iterator over slices of length `slice_size`.
-    ///
-    /// If the length of the input is nto a multiple of the slice size, the
-    /// remaining elements are ignored.
-    fn slice_par_iter(
-        &self,
-        slice_size: usize,
-    ) -> impl IndexedParallelIterator<Item = &[T]> + '_ {
-        let simd_size = self.length / slice_size;
-        (0..simd_size)
-            .into_par_iter()
-            .map(move |i| &self[i * slice_size..(i + 1) * slice_size])
-    }
-
-    /// Create a parallel mutable slice iterator with slices of length `slice_size`.
-    ///
-    /// If the length of the input is not a multiple of the slice size, the remaining
-    /// elements are ignored.
-    fn slice_mut_par_iter<'a>(
-        &'a mut self,
-        slice_size: usize,
-    ) -> impl IndexedParallelIterator<Item = &'a mut [T]> + '_ {
-        let elements = self.length / slice_size;
-        (0..elements).into_par_iter().map_init(
-            || self.ptr,
-            move |ptr, i| {
-                let start = i * slice_size;
-                let end = (i + 1) * slice_size;
-
-                let slice = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        ptr.0.as_ptr().add(start),
-                        end - start,
-                    )
-                };
-
-                slice
-            },
-        )
-    }
-}
-
-impl<T> HostStorage<T> {
-    /// Create a new [`HostStorage`] object with [`length`] elements, all initialized to
-    /// `T::default()`.
-    ///
-    /// # Example
-    /// ```rust
-    /// use tensr::backend::host::storage::HostStorage;
-    ///
-    /// let host_storage = HostStorage::<f32>::new(10);
-    /// assert_eq!(host_storage.length, 10);
-    ///
-    /// for i in 0..host_storage.length {
-    ///     assert_eq!(host_storage[i], 0.0);
-    /// }
-    /// ```
-    pub fn new(length: usize) -> Self
-    where
-        T: Default,
-    {
-        unsafe {
-            let data = std::alloc::alloc(
-                std::alloc::Layout::from_size_align_unchecked(
-                    length * core::mem::size_of::<T>(),
-                    MEM_ALIGN,
-                ),
-            )
-            .cast::<T>();
-
-            // Initialise all elements to their default value
-            for i in 0..length {
-                *data.add(i) = T::default();
-            }
-
-            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
-        }
-    }
-
-    /// Create a new [`HostStorage`] object with [`length`] elements, not initializing the
-    /// memory. For trivial types, this might be fine, but for types which require
-    /// construction, this may cause problems if you are not careful.
-    ///
-    /// # Example
-    /// ```rust
-    /// use tensr::backend::host::storage::HostStorage;
-    ///
-    /// let host_storage = HostStorage::<f32>::new_uninitialized(10);
-    /// assert_eq!(host_storage.length, 10);
-    /// ```
-    pub fn new_uninitialized(length: usize) -> Self {
-        unsafe {
-            let data = std::alloc::alloc(
-                std::alloc::Layout::from_size_align_unchecked(
-                    length * core::mem::size_of::<T>(),
-                    MEM_ALIGN,
-                ),
-            )
-            .cast::<T>();
-
-            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
-        }
-    }
-
-    pub const fn as_shared(&self) -> SharedHostStorage<'_, T> {
-        SharedHostStorage {
-            ptr: self.ptr,
-            length: self.length,
-            phantom: std::marker::PhantomData,
-        }
-    }
-
-    pub fn take_as_vec(&mut self) -> Vec<T> {
-        unsafe {
-            // Set length to zero so we do not free data
-            let length = self.length;
-            self.length = 0;
-            Vec::from_raw_parts(self.ptr.0.as_ptr(), length, length)
         }
     }
 }

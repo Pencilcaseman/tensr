@@ -9,6 +9,9 @@ panic_immediate_abort = []
 [dependencies]
 rayon = "1.10.0"
 
+[dev-dependencies]
+paste = "1.0"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1
