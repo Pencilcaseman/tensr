@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use tensr::backend::host::storage;
 
 macro_rules! test_all {
@@ -35,12 +36,12 @@ macro_rules! test_alloc {
     };
 }
 
-macro_rules! test_alloc_uninitialized {
+macro_rules! test_alloc_uninit {
     ($type:ty, $name:ident) => {
         #[test]
         fn $name() {
             let n = 1000;
-            let mut s = storage::HostStorage::<$type>::new_uninitialized(n);
+            let mut s = unsafe { storage::HostStorage::<$type>::new_uninit(n) };
             assert_eq!(s.length, n);
 
             // Assert alignment is correct
@@ -109,6 +110,99 @@ macro_rules! test_as_shared {
     };
 }
 
+macro_rules! test_take_as_vec {
+    ($type:ty, $name:ident) => {
+        #[test]
+        fn $name() {
+            let n = 1000;
+            let mut v = Vec::new();
+
+            // Drop s to check the memory is not freed
+            {
+                let mut s = storage::HostStorage::<$type>::new(n);
+                v = s.take_as_vec();
+                drop(s);
+            }
+
+            assert_eq!(v.len(), n);
+
+            // Check all values are valid and correct
+            for i in 0..v.len() {
+                type Type = $type;
+                assert_eq!(v[i], { Type::default() });
+            }
+        }
+    };
+}
+
+macro_rules! test_simd_par_iter {
+    ($type:ty, $name:ident) => {
+        #[test]
+        fn $name() {
+            let n_simd = 1000;
+            let n = n_simd * storage::SIMD_WIDTH;
+            let s = storage::HostStorage::<$type>::new(n);
+
+            type Type = $type;
+
+            (0..n).into_par_iter().zip(s.simd_par_iter()).for_each(
+                |(idx, packet)| {
+                    for i in 0..storage::SIMD_WIDTH {
+                        assert_eq!(packet[i], Type::default());
+                    }
+                },
+            );
+        }
+    };
+}
+
+macro_rules! test_slice_par_iter {
+    ($type:ty, $name:ident) => {
+        #[test]
+        fn $name() {
+            let n_simd = 1000;
+            let n = n_simd * storage::SIMD_WIDTH;
+            let s = storage::HostStorage::<$type>::new(n);
+
+            type Type = $type;
+
+            (0..n)
+                .into_par_iter()
+                .zip(s.slice_par_iter(storage::SIMD_WIDTH))
+                .for_each(|(idx, slice)| {
+                    for i in 0..storage::SIMD_WIDTH {
+                        assert_eq!(slice[i], Type::default());
+                    }
+                });
+        }
+    };
+}
+
+macro_rules! test_slice_mut_par_iter {
+    ($type:ty, $name:ident) => {
+        #[test]
+        fn $name() {
+            let n_simd = 1000;
+            let n = n_simd * storage::SIMD_WIDTH;
+            let mut s = unsafe { storage::HostStorage::<$type>::new_uninit(n); }
+
+            type Type = $type;
+
+            (0..n)
+                .into_par_iter()
+                .zip(s.slice_mut_par_iter(storage::SIMD_WIDTH))
+                .for_each(|(idx, slice)| {
+                    for i in 0..storage::SIMD_WIDTH {
+                        slice[i] = Type::default();
+                        assert_eq!(slice[i], Type::default());
+                    }
+                });
+        }
+    };
+}
+
 test_all_fundamental!(test_alloc);
-test_all_fundamental!(test_alloc_uninitialized);
+test_all_fundamental!(test_alloc_uninit);
 test_all_fundamental!(test_as_shared);
+test_all_fundamental!(test_take_as_vec);
+test_all_fundamental!(test_simd_par_iter);

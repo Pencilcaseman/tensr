@@ -106,21 +106,18 @@ impl<T> HostStorage<T> {
     /// ```rust
     /// use tensr::backend::host::storage::HostStorage;
     ///
-    /// let host_storage = HostStorage::<f32>::new_uninitialized(10);
+    /// let host_storage = unsafe { HostStorage::<f32>::new_uninit(10) };
     /// assert_eq!(host_storage.length, 10);
     /// ```
-    pub fn new_uninitialized(length: usize) -> Self {
-        unsafe {
-            let data = std::alloc::alloc(
-                std::alloc::Layout::from_size_align_unchecked(
-                    length * core::mem::size_of::<T>(),
-                    MEM_ALIGN,
-                ),
-            )
+    pub unsafe fn new_uninit(length: usize) -> Self {
+        let data =
+            std::alloc::alloc(std::alloc::Layout::from_size_align_unchecked(
+                length * core::mem::size_of::<T>(),
+                MEM_ALIGN,
+            ))
             .cast::<T>();
 
-            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
-        }
+        Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
     }
 
     pub const fn as_shared(&self) -> SharedHostStorage<'_, T> {
@@ -146,7 +143,7 @@ where
     T: std::simd::SimdElement + Send + Sync,
 {
     /// Create a parallel iterator over SIMD elements of width [`SIMD_WIDTH`].
-    fn simd_par_iter(
+    pub fn simd_par_iter(
         &self,
     ) -> impl IndexedParallelIterator<Item = Simd<T, SIMD_WIDTH>> + '_ {
         let simd_size = self.length / SIMD_WIDTH;
@@ -166,7 +163,7 @@ where
     ///
     /// If the length of the input is nto a multiple of the slice size, the
     /// remaining elements are ignored.
-    fn slice_par_iter(
+    pub fn slice_par_iter(
         &self,
         slice_size: usize,
     ) -> impl IndexedParallelIterator<Item = &[T]> + '_ {
@@ -180,7 +177,7 @@ where
     ///
     /// If the length of the input is not a multiple of the slice size, the remaining
     /// elements are ignored.
-    fn slice_mut_par_iter<'a>(
+    pub fn slice_mut_par_iter<'a>(
         &'a mut self,
         slice_size: usize,
     ) -> impl IndexedParallelIterator<Item = &'a mut [T]> + '_ {
@@ -302,7 +299,7 @@ impl<T> std::ops::Index<std::ops::Range<usize>> for HostStorage<T> {
             assert_failed(index.start, self.length)
         }
 
-        if index.end >= self.length {
+        if index.end > self.length {
             assert_failed(index.end, self.length)
         }
 
