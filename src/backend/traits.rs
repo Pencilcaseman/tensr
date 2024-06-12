@@ -4,8 +4,8 @@
 /// type.
 pub trait Backend {
     /// A type representing an object which can allocate, manage and store
-    /// memory for a given [`Backend`]
-    type OwnedStorage;
+    /// memory for a given [`Backend`]. Elements are of type `T`.
+    type OwnedStorage<T>;
 }
 
 /// A [`Backend`] trait for data stored on the host
@@ -19,10 +19,10 @@ pub(crate) trait OwnedStorage:
 {
 }
 
-/// A trait marking an object as referencing the data it contains. Referenced
-/// data is owned elsewhere in a wider scope, so cannot be freed, reallocated
-/// or moved in any way. It may also have a non-trivial stride.
-pub(crate) trait SharedStorage:
-    std::ops::Index<usize> + std::ops::IndexMut<usize>
-{
-}
+// /// A trait marking an object as referencing the data it contains. Referenced
+// /// data is owned elsewhere in a wider scope, so cannot be freed, reallocated
+// /// or moved in any way. It may also have a non-trivial stride.
+// pub(crate) trait SharedStorage:
+//     std::ops::Index<usize> + std::ops::IndexMut<usize>
+// {
+// }

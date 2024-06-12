@@ -1,20 +1,12 @@
 #![feature(portable_simd)]
 
 pub mod backend {
+    pub mod op_traits;
     pub mod traits;
 
     pub mod host {
-        pub mod storage;
+        pub mod host_backend;
+        pub mod host_ops;
+        pub mod host_storage;
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn it_works() {
-//         let result = add(2, 2);
-//         assert_eq!(result, 4);
-//     }
-// }

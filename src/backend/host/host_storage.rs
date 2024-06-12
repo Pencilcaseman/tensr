@@ -1,7 +1,6 @@
-use crate::backend::traits::{Backend, OwnedStorage, SharedStorage};
+use crate::backend::traits::OwnedStorage;
 use rayon::prelude::*;
-use std::ptr::NonNull;
-use std::simd::Simd;
+use std::{ptr::NonNull, simd::Simd};
 
 /// The number of bytes to align heap-allocated memory to. The largest
 /// alignment (64 bytes) is required by AVX-512, so we use this by default.
@@ -12,7 +11,7 @@ pub const MEM_ALIGN: usize = 64;
 /// SIMD vector width.
 ///
 /// todo: make the width depend on the data type and architecture
-pub const SIMD_WIDTH: usize = 8;
+pub const SIMD_WIDTH: usize = 4;
 
 /// A non-null pointer which can be used in parallel blocks
 pub struct HostNonNull<T>(pub NonNull<T>);
@@ -31,7 +30,7 @@ impl<T> Copy for HostNonNull<T> {}
 ///
 /// # Example
 /// ```rust
-/// use tensr::backend::host::storage::HostStorage;
+/// use tensr::backend::host::host_storage::HostStorage;
 ///
 /// let mut host_storage = HostStorage::<usize>::new(10);
 /// assert_eq!(host_storage.length, 10);
@@ -51,15 +50,7 @@ pub struct HostStorage<T> {
     pub length: usize,
 }
 
-/// A [`SharedStorage`] object for data in host memory
-pub struct SharedHostStorage<'a, T> {
-    pub ptr: HostNonNull<T>,
-    pub length: usize,
-    pub phantom: std::marker::PhantomData<&'a T>,
-}
-
 impl<T> OwnedStorage for HostStorage<T> {}
-impl<'a, T> SharedStorage for SharedHostStorage<'a, T> {}
 
 impl<T> HostStorage<T> {
     /// Create a new [`HostStorage`] object with [`length`] elements, all initialized to
@@ -67,7 +58,7 @@ impl<T> HostStorage<T> {
     ///
     /// # Example
     /// ```rust
-    /// use tensr::backend::host::storage::HostStorage;
+    /// use tensr::backend::host::host_storage::HostStorage;
     ///
     /// let host_storage = HostStorage::<f32>::new(10);
     /// assert_eq!(host_storage.length, 10);
@@ -104,7 +95,7 @@ impl<T> HostStorage<T> {
     ///
     /// # Example
     /// ```rust
-    /// use tensr::backend::host::storage::HostStorage;
+    /// use tensr::backend::host::host_storage::HostStorage;
     ///
     /// let host_storage = unsafe { HostStorage::<f32>::new_uninit(10) };
     /// assert_eq!(host_storage.length, 10);
@@ -118,14 +109,6 @@ impl<T> HostStorage<T> {
             .cast::<T>();
 
         Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
-    }
-
-    pub const fn as_shared(&self) -> SharedHostStorage<'_, T> {
-        SharedHostStorage {
-            ptr: self.ptr,
-            length: self.length,
-            phantom: std::marker::PhantomData,
-        }
     }
 
     pub fn take_as_vec(&mut self) -> Vec<T> {
@@ -188,14 +171,12 @@ where
                 let start = i * slice_size;
                 let end = (i + 1) * slice_size;
 
-                let slice = unsafe {
+                unsafe {
                     std::slice::from_raw_parts_mut(
                         ptr.0.as_ptr().add(start),
                         end - start,
                     )
-                };
-
-                slice
+                }
             },
         )
     }
@@ -217,7 +198,7 @@ impl<T> std::ops::Index<usize> for HostStorage<T> {
 
     fn index(&self, index: usize) -> &Self::Output {
         #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[inline(never)]
         #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("index (is {index}) must be <= len (is {len})");
@@ -233,51 +214,18 @@ impl<T> std::ops::Index<usize> for HostStorage<T> {
 
 impl<T> std::ops::IndexMut<usize> for HostStorage<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
-        #[track_caller]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {index}) must be <= len (is {len})");
-        }
+        #[cfg(not(feature = "no_error_checking"))]
+        {
+            #[cold]
+            #[inline(never)]
+            #[track_caller]
+            fn assert_failed(index: usize, len: usize) -> ! {
+                panic!("index (is {index}) must be <= len (is {len})");
+            }
 
-        if index >= self.length {
-            assert_failed(index, self.length)
-        }
-
-        unsafe { self.ptr.0.as_ptr().add(index).as_mut().unwrap() }
-    }
-}
-
-impl<'a, T> std::ops::Index<usize> for SharedHostStorage<'a, T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
-        #[track_caller]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {index}) must be <= len (is {len})");
-        }
-
-        if index >= self.length {
-            assert_failed(index, self.length)
-        }
-
-        unsafe { self.ptr.0.as_ptr().add(index).as_ref().unwrap() }
-    }
-}
-
-impl<'a, T> std::ops::IndexMut<usize> for SharedHostStorage<'a, T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
-        #[track_caller]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {index}) must be <= len (is {len})");
-        }
-
-        if index >= self.length {
-            assert_failed(index, self.length)
+            if index >= self.length {
+                assert_failed(index, self.length)
+            }
         }
 
         unsafe { self.ptr.0.as_ptr().add(index).as_mut().unwrap() }
@@ -289,7 +237,7 @@ impl<T> std::ops::Index<std::ops::Range<usize>> for HostStorage<T> {
 
     fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
         #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[inline(never)]
         #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("index (is {index}) must be <= len (is {len})");
@@ -312,14 +260,13 @@ impl<T> std::ops::Index<std::ops::Range<usize>> for HostStorage<T> {
     }
 }
 
-impl<'a, T> std::ops::Index<std::ops::Range<usize>>
-    for SharedHostStorage<'a, T>
-{
-    type Output = [T];
-
-    fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
+impl<T> std::ops::IndexMut<std::ops::Range<usize>> for HostStorage<T> {
+    fn index_mut(
+        &mut self,
+        index: std::ops::Range<usize>,
+    ) -> &mut Self::Output {
         #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[inline(never)]
         #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("index (is {index}) must be <= len (is {len})");
@@ -334,7 +281,7 @@ impl<'a, T> std::ops::Index<std::ops::Range<usize>>
         }
 
         unsafe {
-            std::slice::from_raw_parts(
+            std::slice::from_raw_parts_mut(
                 self.ptr.0.as_ptr().add(index.start),
                 index.end - index.start,
             )
@@ -346,48 +293,15 @@ impl<T> std::ops::Index<std::ops::RangeInclusive<usize>> for HostStorage<T> {
     type Output = [T];
 
     fn index(&self, index: std::ops::RangeInclusive<usize>) -> &Self::Output {
+        let start = *index.start();
+        let end = *index.end();
+
         #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[inline(never)]
         #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("index (is {index}) must be <= len (is {len})");
         }
-
-        let start = *index.start();
-        let end = *index.end();
-
-        if start >= self.length {
-            assert_failed(start, self.length)
-        }
-
-        if end >= self.length {
-            assert_failed(*index.end(), self.length)
-        }
-
-        unsafe {
-            std::slice::from_raw_parts(
-                self.ptr.0.as_ptr().add(*index.start()),
-                end - start + 1,
-            )
-        }
-    }
-}
-
-impl<'a, T> std::ops::Index<std::ops::RangeInclusive<usize>>
-    for SharedHostStorage<'a, T>
-{
-    type Output = [T];
-
-    fn index(&self, index: std::ops::RangeInclusive<usize>) -> &Self::Output {
-        #[cold]
-        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
-        #[track_caller]
-        fn assert_failed(index: usize, len: usize) -> ! {
-            panic!("index (is {index}) must be <= len (is {len})");
-        }
-
-        let start = *index.start();
-        let end = *index.end();
 
         if start >= self.length {
             assert_failed(start, self.length)
