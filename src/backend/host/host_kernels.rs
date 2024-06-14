@@ -22,11 +22,7 @@ macro_rules! host_kernel {
 
             impl<T> HostBinaryOp<T> for [< Host $kernel_name Kernel >]
             where
-                T: SimdElement + std::ops::$kernel_name<T, Output = T>,
-                Simd<T, SIMD_WIDTH>: std::ops::$kernel_name<
-                    Simd<T, SIMD_WIDTH>,
-                    Output = Simd<T, SIMD_WIDTH>,
-                >,
+                T: Copy + std::ops::$kernel_name<T, Output = T>,
             {
                 #[inline(always)]
                 fn apply_scalar(lhs: &T, rhs: &T) -> T {
