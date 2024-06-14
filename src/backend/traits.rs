@@ -9,12 +9,12 @@ pub trait Backend {
 }
 
 /// A [`Backend`] trait for data stored on the host
-pub(crate) trait HostBackend: Backend {}
+// pub(crate) trait HostBackend: Backend {}
 
 /// A trait marking an object as owning the data it contains. If this is the
 /// case, the data must be stored contiguously and must be paired with a
 /// backend.
-pub(crate) trait OwnedStorage:
+pub trait OwnedStorage:
     std::ops::Index<usize> + std::ops::IndexMut<usize>
 {
 }

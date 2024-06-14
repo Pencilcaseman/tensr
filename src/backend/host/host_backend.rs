@@ -3,10 +3,8 @@ use crate::backend::{
     traits::{self, Backend},
 };
 
-struct HostBackend {}
+pub struct HostBackend {}
 
 impl Backend for HostBackend {
     type OwnedStorage<T> = HostStorage<T>;
 }
-
-impl traits::HostBackend for HostBackend {}
