@@ -1,6 +1,12 @@
-use crate::dimension::shape::{DimensionType, MAX_SHAPE_DIMS};
+use crate::dimension::shape::MAX_SHAPE_DIMS;
+
+#[cfg(feature = "small_matrix_dimensions")]
+pub type StrideType = i16;
+
+#[cfg(not(feature = "small_matrix_dimensions"))]
+pub type StrideType = i64;
 
 pub struct Stride {
-    offset: DimensionType,
-    strides: [DimensionType; MAX_SHAPE_DIMS],
+    offset: usize, // Offset cannot be negative
+    strides: [StrideType; MAX_SHAPE_DIMS],
 }
