@@ -1,10 +1,3 @@
-use crate::backend::{
-    host::host_storage::HostStorage,
-    traits::{self, Backend},
-};
+use crate::backend::traits::Backend;
 
-pub struct HostBackend {}
-
-impl Backend for HostBackend {
-    type OwnedStorage<T> = HostStorage<T>;
-}
+pub trait HostBackend: Backend {}

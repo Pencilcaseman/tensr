@@ -2,7 +2,7 @@ use crate::backend::host::host_storage::SIMD_WIDTH;
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 pub trait HostBinaryOp<T> {
-    fn apply_scalar(lhs: &T, rhs: &T) -> T;
+    fn apply_scalar(lhs: T, rhs: T) -> T;
 }
 
 pub trait HostBinaryOpSimd<T>: HostBinaryOp<T>
@@ -10,8 +10,8 @@ where
     T: SimdElement,
 {
     fn apply_simd(
-        lhs: &Simd<T, SIMD_WIDTH>,
-        rhs: &Simd<T, SIMD_WIDTH>,
+        lhs: Simd<T, SIMD_WIDTH>,
+        rhs: Simd<T, SIMD_WIDTH>,
     ) -> Simd<T, SIMD_WIDTH>;
 }
 
@@ -25,8 +25,8 @@ macro_rules! host_kernel {
                 T: Copy + std::ops::$kernel_name<T, Output = T>,
             {
                 #[inline(always)]
-                fn apply_scalar(lhs: &T, rhs: &T) -> T {
-                    *lhs $operation *rhs
+                fn apply_scalar(lhs: T, rhs: T) -> T {
+                    lhs $operation rhs
                 }
             }
 
@@ -40,14 +40,14 @@ macro_rules! host_kernel {
             {
                 #[inline(always)]
                 fn apply_simd(
-                    lhs: &Simd<T, SIMD_WIDTH>,
-                    rhs: &Simd<T, SIMD_WIDTH>,
+                    lhs: Simd<T, SIMD_WIDTH>,
+                    rhs: Simd<T, SIMD_WIDTH>,
                 ) -> Simd<T, SIMD_WIDTH>
                 where
                     LaneCount<SIMD_WIDTH>: SupportedLaneCount,
                     T: SimdElement,
                 {
-                    *lhs $operation *rhs
+                    lhs $operation rhs
                 }
             }
         }

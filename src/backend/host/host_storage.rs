@@ -1,6 +1,14 @@
-use crate::backend::traits::OwnedStorage;
+use crate::backend::{
+    host::host_backend::HostBackend,
+    traits::{
+        Backend, ContainerLength, OwnedStorage, ScalarAccessor, SimdAccessor,
+    },
+};
 use rayon::prelude::*;
-use std::{ptr::NonNull, simd::Simd};
+use std::{
+    ptr::NonNull,
+    simd::{Simd, SimdElement},
+};
 
 /// The number of bytes to align heap-allocated memory to. The largest
 /// alignment (64 bytes) is required by AVX-512, so we use this by default.
@@ -138,6 +146,48 @@ where
     }
 }
 
+impl<T> Backend for HostStorage<T> {
+    type OwnedStorage<V> = HostStorage<V>;
+}
+
+impl<T> HostBackend for HostStorage<T> {}
+
+impl<T> ContainerLength for HostStorage<T> {
+    fn len(&self) -> usize {
+        self.length
+    }
+}
+
+impl<T> ScalarAccessor for HostStorage<T>
+where
+    T: Copy,
+{
+    type Scalar = T;
+
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self[index]
+    }
+
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        self[index] = value;
+    }
+}
+
+impl<T> SimdAccessor for HostStorage<T>
+where
+    T: Copy + SimdElement,
+{
+    type SIMD = Simd<T, SIMD_WIDTH>;
+
+    fn get_simd(&self, index: usize) -> Self::SIMD {
+        Simd::<T, SIMD_WIDTH>::from_slice(&self[index..index + SIMD_WIDTH])
+    }
+
+    fn write_simd(&mut self, value: Self::SIMD, index: usize) {
+        value.copy_to_slice(&mut self[index..index + SIMD_WIDTH]);
+    }
+}
+
 impl<T> HostStorage<T>
 where
     T: Send + Sync,
@@ -214,18 +264,15 @@ impl<T> std::ops::Index<usize> for HostStorage<T> {
 
 impl<T> std::ops::IndexMut<usize> for HostStorage<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        #[cfg(not(feature = "no_error_checking"))]
-        {
-            #[cold]
-            #[inline(never)]
-            #[track_caller]
-            fn assert_failed(index: usize, len: usize) -> ! {
-                panic!("index (is {index}) must be <= len (is {len})");
-            }
+        #[cold]
+        #[inline(never)]
+        #[track_caller]
+        fn assert_failed(index: usize, len: usize) -> ! {
+            panic!("index (is {index}) must be <= len (is {len})");
+        }
 
-            if index >= self.length {
-                assert_failed(index, self.length)
-            }
+        if index >= self.length {
+            assert_failed(index, self.length)
         }
 
         unsafe { self.ptr.0.as_ptr().add(index).as_mut().unwrap() }
