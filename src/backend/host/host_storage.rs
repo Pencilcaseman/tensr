@@ -1,25 +1,15 @@
 use crate::backend::{
     host::host_backend::HostBackend,
-    traits::{
-        Backend, ContainerLength, OwnedStorage, ScalarAccessor, SimdAccessor,
-    },
+    traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
 };
 use rayon::prelude::*;
-use std::{
-    ptr::NonNull,
-    simd::{Simd, SimdElement},
-};
+use std::ptr::NonNull;
 
 /// The number of bytes to align heap-allocated memory to. The largest
 /// alignment (64 bytes) is required by AVX-512, so we use this by default.
 /// Please create a pull request or an issue if there is a reasont to change
 /// this value.
 pub const MEM_ALIGN: usize = 64;
-
-/// SIMD vector width.
-///
-/// todo: make the width depend on the data type and architecture
-pub const SIMD_WIDTH: usize = 4;
 
 /// A non-null pointer which can be used in parallel blocks
 pub struct HostNonNull<T>(pub NonNull<T>);
@@ -57,6 +47,8 @@ pub struct HostStorage<T> {
     pub ptr: HostNonNull<T>,
     pub length: usize,
 }
+
+impl<T> Storage for HostStorage<T> {}
 
 impl<T> OwnedStorage for HostStorage<T> {}
 
@@ -129,23 +121,6 @@ impl<T> HostStorage<T> {
     }
 }
 
-impl<T> HostStorage<T>
-where
-    T: std::simd::SimdElement + Send + Sync,
-{
-    /// Create a parallel iterator over SIMD elements of width [`SIMD_WIDTH`].
-    pub fn simd_par_iter(
-        &self,
-    ) -> impl IndexedParallelIterator<Item = Simd<T, SIMD_WIDTH>> + '_ {
-        let simd_size = self.length / SIMD_WIDTH;
-        (0..simd_size).into_par_iter().map(move |i| {
-            Simd::<T, SIMD_WIDTH>::from_slice(
-                &self[i * SIMD_WIDTH..(i + 1) * SIMD_WIDTH],
-            )
-        })
-    }
-}
-
 impl<T> Backend for HostStorage<T> {
     type OwnedStorage<V> = HostStorage<V>;
 }
@@ -170,21 +145,6 @@ where
 
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         self[index] = value;
-    }
-}
-
-impl<T> SimdAccessor for HostStorage<T>
-where
-    T: Copy + SimdElement,
-{
-    type SIMD = Simd<T, SIMD_WIDTH>;
-
-    fn get_simd(&self, index: usize) -> Self::SIMD {
-        Simd::<T, SIMD_WIDTH>::from_slice(&self[index..index + SIMD_WIDTH])
-    }
-
-    fn write_simd(&mut self, value: Self::SIMD, index: usize) {
-        value.copy_to_slice(&mut self[index..index + SIMD_WIDTH]);
     }
 }
 
