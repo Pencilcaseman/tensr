@@ -13,7 +13,7 @@ use crate::{
 /// cases will likely yield a performance improvement in general.
 const MAX_STACK_DIMS: usize = 4;
 
-pub(crate) enum DynIndex {
+pub enum DynIndex {
     /// Stack-allocated array storing `.0` dimensions
     Stack(DimLen, [UDim; MAX_STACK_DIMS]),
 
@@ -28,6 +28,13 @@ impl Dimension for DimDyn {
         match self.get() {
             DynIndex::Stack(l, _) => *l,
             DynIndex::Heap(b) => b.len() as DimLen,
+        }
+    }
+
+    fn size(&self) -> usize {
+        match self.get() {
+            DynIndex::Stack(_, h) => h.iter().fold(1, |acc, n| acc * n),
+            DynIndex::Heap(b) => b.iter().fold(1, |acc, n| acc * n),
         }
     }
 }
@@ -92,22 +99,24 @@ impl std::ops::Index<DimLen> for DimDyn {
     }
 }
 
-impl std::ops::IndexMut<DimLen> for DimDyn {
-    fn index_mut(&mut self, index: DimLen) -> &mut Self::Output {
-        #[cold]
-        #[inline(never)]
-        #[track_caller]
-        fn assert_failed(index: DimLen, len: DimLen) -> ! {
-            panic!("index (is {index}) must be <= len (is {len})");
-        }
+// impl std::ops::IndexMut<DimLen> for DimDyn {
+//     fn index_mut(&mut self, index: DimLen) -> &mut Self::Output {
+//         #[cold]
+//         #[inline(never)]
+//         #[track_caller]
+//         fn assert_failed(index: DimLen, len: DimLen) -> ! {
+//             panic!("index (is {index}) must be <= len (is {len})");
+//         }
 
-        if index >= self.len() {
-            assert_failed(index, self.len());
-        }
+//         if index >= self.len() {
+//             assert_failed(index, self.len());
+//         }
 
-        match self.get_mut() {
-            DynIndex::Stack(_, h) => &mut h[index as usize],
-            DynIndex::Heap(b) => &mut b[index as usize],
-        }
-    }
-}
+//         unsafe {
+//             match self.get_mut() {
+//                 DynIndex::Stack(_, h) => &mut h[index as usize],
+//                 DynIndex::Heap(b) => &mut b[index as usize],
+//             }
+//         }
+//     }
+// }
