@@ -1,6 +1,7 @@
+use std::ops::Deref;
+
 use crate::{
-    dimension::dim::{self, Dim, Dimension},
-    repeat_for_dims,
+    dimension::dim::{Dim, Dimension},
     types::{DimLen, UDim},
 };
 
@@ -27,6 +28,17 @@ impl DynIndex {
         match self {
             Self::Stack(l, _) => *l,
             Self::Heap(h) => h.len() as DimLen,
+        }
+    }
+}
+
+impl Deref for DynIndex {
+    type Target = [UDim];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Stack(len, stack) => &stack[0..(*len as usize)],
+            Self::Heap(heap) => &heap[0..heap.len()],
         }
     }
 }
@@ -84,57 +96,89 @@ dyn_index_index!(DimLen);
 /// be useful when reading an array from a file or user-input.
 pub type DimDyn = Dim<DynIndex>;
 
-macro_rules! dim_dyn_from_impl {
-    ($($t: ty),*) => {
-        $(
-            paste::paste! {
-                impl DimDynNewFrom<$t> for DimDyn {
-                    fn new_from(index: $t) -> Self {
-                        Self::new(
-                            match index.len() {
-                                stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
-                                    let mut data = [0; MAX_STACK_DIMS];
-                                    for i in 0..stack {
-                                        data[i as usize] = index[i] as UDim;
-                                    }
-
-                                    DynIndex::Stack(stack as DimLen, data)
-                                }
-                                heap => {
-                                    let mut data = Vec::with_capacity(heap as usize);
-
-                                    for i in 0..heap {
-                                        data.push(index[i] as UDim);
-                                    }
-
-                                    DynIndex::Heap(data.into_boxed_slice())
-                                }
-                            }
-                        )
-                    }
+impl DimDyn {
+    /// Create a new [`DimDyn`] instance from a value. The value must be
+    /// convertable into a [`&[V]`], where [`V`] can be copied and cast
+    /// into a [`UDim`].
+    pub fn new_from<T, V>(index: T) -> Self
+    where
+        V: Copy,
+        T: Deref<Target = [V]>,
+        UDim: From<V>,
+    {
+        Self::new(match index.len() {
+            stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
+                let mut data = [0; MAX_STACK_DIMS];
+                for i in 0..stack {
+                    data[i as usize] = UDim::from(index[i]);
                 }
+
+                DynIndex::Stack(stack as DimLen, data)
             }
-        )*
-    };
+            heap => {
+                let mut data = Vec::with_capacity(heap as usize);
+
+                for i in 0..heap {
+                    data.push(UDim::from(index[i]));
+                }
+
+                DynIndex::Heap(data.into_boxed_slice())
+            }
+        })
+    }
 }
 
-macro_rules! dim_dyn_from_dim {
-    ($($dim: literal),*) => {
-        paste::paste! {
-            dim_dyn_from_impl!($(
-                dim::[< Dim $dim >]
-            ),*);
-        }
-    };
-}
+// macro_rules! dim_dyn_from_impl {
+//     ($($t: ty),*) => {
+//         $(
+//             paste::paste! {
+//                 impl DimDynNewFrom<$t> for DimDyn {
+//                     fn new_from(index: $t) -> Self {
+//                         Self::new(
+//                             match index.len() {
+//                                 stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
+//                                     let mut data = [0; MAX_STACK_DIMS];
+//                                     for i in 0..stack {
+//                                         data[i as usize] = index[i] as UDim;
+//                                     }
 
-dim_dyn_from_impl!(Vec<usize>);
+//                                     DynIndex::Stack(stack as DimLen, data)
+//                                 }
+//                                 heap => {
+//                                     let mut data = Vec::with_capacity(heap as usize);
 
-pub trait DimDynNewFrom<Index> {
-    fn new_from(index: Index) -> Self;
-}
+//                                     for i in 0..heap {
+//                                         data.push(index[i] as UDim);
+//                                     }
 
-repeat_for_dims!(dim_dyn_from_dim);
+//                                     DynIndex::Heap(data.into_boxed_slice())
+//                                 }
+//                             }
+//                         )
+//                     }
+//                 }
+//             }
+//         )*
+//     };
+// }
+
+// macro_rules! dim_dyn_from_dim {
+//     ($($dim: literal),*) => {
+//         paste::paste! {
+//             dim_dyn_from_impl!($(
+//                 dim::[< Dim $dim >]
+//             ),*);
+//         }
+//     };
+// }
+
+// dim_dyn_from_impl!(Vec<usize>);
+
+// pub trait DimDynNewFrom<Index> {
+//     fn new_from(index: Index) -> Self;
+// }
+
+// repeat_for_dims!(dim_dyn_from_dim);
 
 impl Dimension for DimDyn {
     fn len(&self) -> DimLen {
@@ -231,7 +275,7 @@ mod test {
                     #[test]
                     pub fn [< test_dim_dyn $dim >]() {
                         let mut data = Vec::with_capacity($dim);
-                        for i in 0..$dim {
+                        for i in 0usize..$dim {
                             data.push(i + 1);
                         }
 
@@ -255,7 +299,7 @@ mod test {
                     #[test]
                     pub fn [< test_dim_dyn_mut $dim >]() {
                         let mut data = Vec::with_capacity($dim);
-                        for i in 0..$dim {
+                        for i in 0usize..$dim {
                             data.push(i + 1);
                         }
 
@@ -311,7 +355,7 @@ mod test {
                     #[test]
                     pub fn [< test_dim_dyn_str_ $dim >]() {
                         let mut data = Vec::with_capacity($dim);
-                        for i in 0..$dim {
+                        for i in 0usize..$dim {
                             data.push(i + 1);
                         }
 
