@@ -1,5 +1,6 @@
 use crate::types::{DimLen, UDim};
 
+#[macro_export]
 macro_rules! repeat_for_dims {
     ($macro: tt) => {
         $macro!(0, 1, 2, 3, 4, 5, 6, 7, 8);
@@ -14,7 +15,7 @@ pub trait Dimension: std::fmt::Debug + Clone + std::ops::Index<DimLen> {
 }
 
 /// Represents the number of dimensions stored by an object
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Dim<Index> {
     index: Index,
 }
@@ -58,6 +59,12 @@ macro_rules! dim_def {
 
                 fn size(&self) -> usize {
                     (0..$n).into_iter().fold(1, |acc, i| acc * self.index[i])
+                }
+            }
+
+            impl std::fmt::Debug for [< Dim $n >] {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_fmt(format_args!("{:?}", self.index))
                 }
             }
 
@@ -159,7 +166,27 @@ mod test {
         };
     }
 
+    macro_rules! test_dim_str {
+        ($($dim: literal),*) => {
+            $(
+                paste::paste! {
+                    #[test]
+                    pub fn [< test_dim_str_ $dim >]() {
+                        let mut data = [0; $dim];
+                        for i in 0..$dim {
+                            data[i] = i + 1;
+                        }
+                        let dim = [< Dim $dim >]::new(data);
+
+                        assert_eq!(format!("{dim:?}"), format!("{data:?}"));
+                    }
+                }
+            )*
+        };
+    }
+
     repeat_for_dims!(test_dim);
     repeat_for_dims!(test_dim_mut);
     repeat_for_dims!(test_dim_size);
+    repeat_for_dims!(test_dim_str);
 }

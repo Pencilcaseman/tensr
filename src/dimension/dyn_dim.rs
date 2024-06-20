@@ -1,5 +1,6 @@
 use crate::{
-    dimension::dim::{Dim, Dimension},
+    dimension::dim::{self, Dim, Dimension},
+    repeat_for_dims,
     types::{DimLen, UDim},
 };
 
@@ -21,7 +22,119 @@ pub enum DynIndex {
     Heap(Box<[UDim]>),
 }
 
+impl DynIndex {
+    pub fn len(&self) -> DimLen {
+        match self {
+            Self::Stack(l, _) => *l,
+            Self::Heap(h) => h.len() as DimLen,
+        }
+    }
+}
+
+macro_rules! dyn_index_index {
+    ($t: ty) => {
+        impl std::ops::Index<$t> for DynIndex {
+            type Output = UDim;
+
+            fn index(&self, index: $t) -> &Self::Output {
+                #[cold]
+                #[inline(never)]
+                #[track_caller]
+                fn assert_failed(index: DimLen, len: DimLen) -> ! {
+                    panic!("index (is {index}) must be <= len (is {len})");
+                }
+
+                if index as DimLen >= self.len() {
+                    assert_failed(index as DimLen, self.len())
+                }
+
+                match self {
+                    Self::Stack(_, s) => &s[index as usize],
+                    Self::Heap(h) => &h[index as usize],
+                }
+            }
+        }
+
+        impl std::ops::IndexMut<$t> for DynIndex {
+            fn index_mut(&mut self, index: $t) -> &mut Self::Output {
+                #[cold]
+                #[inline(never)]
+                #[track_caller]
+                fn assert_failed(index: DimLen, len: DimLen) -> ! {
+                    panic!("index (is {index}) must be <= len (is {len})");
+                }
+
+                if index as DimLen >= self.len() {
+                    assert_failed(index as DimLen, self.len())
+                }
+
+                match self {
+                    Self::Stack(_, s) => &mut s[index as usize],
+                    Self::Heap(h) => &mut h[index as usize],
+                }
+            }
+        }
+    };
+}
+
+dyn_index_index!(usize);
+dyn_index_index!(DimLen);
+
+/// Represnts a dynamically-dimensioned container. For example, this may
+/// be useful when reading an array from a file or user-input.
 pub type DimDyn = Dim<DynIndex>;
+
+macro_rules! dim_dyn_from_impl {
+    ($($t: ty),*) => {
+        $(
+            paste::paste! {
+                impl DimDynNewFrom<$t> for DimDyn {
+                    fn new_from(index: $t) -> Self {
+                        Self::new(
+                            match index.len() {
+                                stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
+                                    let mut data = [0; MAX_STACK_DIMS];
+                                    for i in 0..stack {
+                                        data[i as usize] = index[i] as UDim;
+                                    }
+
+                                    DynIndex::Stack(stack as DimLen, data)
+                                }
+                                heap => {
+                                    let mut data = Vec::with_capacity(heap as usize);
+
+                                    for i in 0..heap {
+                                        data.push(index[i] as UDim);
+                                    }
+
+                                    DynIndex::Heap(data.into_boxed_slice())
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! dim_dyn_from_dim {
+    ($($dim: literal),*) => {
+        paste::paste! {
+            dim_dyn_from_impl!($(
+                dim::[< Dim $dim >]
+            ),*);
+        }
+    };
+}
+
+dim_dyn_from_impl!(Vec<usize>);
+
+pub trait DimDynNewFrom<Index> {
+    fn new_from(index: Index) -> Self;
+}
+
+repeat_for_dims!(dim_dyn_from_dim);
 
 impl Dimension for DimDyn {
     fn len(&self) -> DimLen {
@@ -33,7 +146,9 @@ impl Dimension for DimDyn {
 
     fn size(&self) -> usize {
         match self.get() {
-            DynIndex::Stack(_, h) => h.iter().fold(1, |acc, n| acc * n),
+            DynIndex::Stack(l, h) => {
+                (0..(*l as usize)).into_iter().fold(1, |acc, n| acc * h[n])
+            }
             DynIndex::Heap(b) => b.iter().fold(1, |acc, n| acc * n),
         }
     }
@@ -45,10 +160,10 @@ impl std::fmt::Debug for DimDyn {
         s.push('[');
 
         match self.get() {
-            DynIndex::Stack(l, h) => {
-                for (i, v) in h.iter().enumerate() {
-                    s.push_str(&format!("{v}"));
-                    if i + 1 < *l as usize {
+            DynIndex::Stack(l, stack) => {
+                for i in 0..*l {
+                    s.push_str(&format!("{}", stack[i as usize]));
+                    if i + 1 < *l {
                         s.push_str(", ");
                     }
                 }
@@ -99,24 +214,118 @@ impl std::ops::Index<DimLen> for DimDyn {
     }
 }
 
-// impl std::ops::IndexMut<DimLen> for DimDyn {
-//     fn index_mut(&mut self, index: DimLen) -> &mut Self::Output {
-//         #[cold]
-//         #[inline(never)]
-//         #[track_caller]
-//         fn assert_failed(index: DimLen, len: DimLen) -> ! {
-//             panic!("index (is {index}) must be <= len (is {len})");
-//         }
+#[cfg(test)]
+mod test {
+    use super::*;
 
-//         if index >= self.len() {
-//             assert_failed(index, self.len());
-//         }
+    macro_rules! repeat_for_dim_dyn {
+        ($macro: tt) => {
+            $macro!(0, 1, 2, 3, 4, 5, 8, 10, 12, 16);
+        };
+    }
 
-//         unsafe {
-//             match self.get_mut() {
-//                 DynIndex::Stack(_, h) => &mut h[index as usize],
-//                 DynIndex::Heap(b) => &mut b[index as usize],
-//             }
-//         }
-//     }
-// }
+    macro_rules! test_dim_dyn {
+        ($($dim: literal),*) => {
+            $(
+                paste::paste! {
+                    #[test]
+                    pub fn [< test_dim_dyn $dim >]() {
+                        let mut data = Vec::with_capacity($dim);
+                        for i in 0..$dim {
+                            data.push(i + 1);
+                        }
+
+                        let dim = DimDyn::new_from(data);
+
+                        assert_eq!(dim.len(), $dim);
+
+                        for i in 0..$dim {
+                            assert_eq!(dim[i], (i + 1) as UDim);
+                        }
+                    }
+                }
+            )*
+        };
+    }
+
+    macro_rules! test_dim_dyn_mut {
+        ($($dim: literal),*) => {
+            $(
+                paste::paste! {
+                    #[test]
+                    pub fn [< test_dim_dyn_mut $dim >]() {
+                        let mut data = Vec::with_capacity($dim);
+                        for i in 0..$dim {
+                            data.push(i + 1);
+                        }
+
+                        let mut dim = DimDyn::new_from(data);
+
+                        assert_eq!(dim.len(), $dim);
+
+                        for i in 0..$dim {
+                            assert_eq!(dim[i], (i + 1) as UDim);
+                        }
+
+                        unsafe {
+                            for i in (0 as UDim)..$dim {
+                                dim.get_mut()[i] = i + 2;
+                            }
+                        }
+
+                        for i in 0..$dim {
+                            assert_eq!(dim[i], (i + 2) as UDim);
+                        }
+                    }
+                }
+            )*
+        };
+    }
+
+    macro_rules! test_dim_dyn_size {
+        ($($dim: literal),*) => {
+            $(
+                paste::paste! {
+                    #[test]
+                    pub fn [< test_dim_dyn_size_ $dim >]() {
+                        let mut data = Vec::with_capacity($dim);
+                        let mut target = 1;
+                        for i in 0..$dim {
+                            data.push(i + 1);
+                            target *= data[i];
+                        }
+
+                        let dim = DimDyn::new_from(data);
+
+                        assert_eq!(dim.size(), target);
+                    }
+                }
+            )*
+        };
+    }
+
+    macro_rules! test_dim_dyn_str {
+        ($($dim: literal),*) => {
+            $(
+                paste::paste! {
+                    #[test]
+                    pub fn [< test_dim_dyn_str_ $dim >]() {
+                        let mut data = Vec::with_capacity($dim);
+                        for i in 0..$dim {
+                            data.push(i + 1);
+                        }
+
+                        let dim = DimDyn::new_from(data.clone());
+
+                        assert_eq!(format!("{dim:?}"), format!("{data:?}"));
+                    }
+                }
+            )*
+        };
+    }
+
+    repeat_for_dim_dyn!(test_dim_dyn);
+    repeat_for_dim_dyn!(test_dim_dyn_mut);
+    repeat_for_dim_dyn!(test_dim_dyn_size);
+    repeat_for_dim_dyn!(test_dim_dyn_str);
+}
