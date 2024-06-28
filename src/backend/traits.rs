@@ -1,4 +1,4 @@
-use crate::backend::op_traits::Applicator2;
+use crate::backend::op_traits::{Applicator2, BinaryOp};
 use crate::dimension::dim::Dimension;
 
 /// The [`Backend`] trait is used to mark structs as a valid backend for
@@ -12,7 +12,9 @@ pub trait Backend {
     where
         T: Copy;
 
-    // type Applicator2<Op, Lhs, Rhs, Out, T>: Applicator2<Op, Lhs, Rhs, Out, T>;
+    type Applicator2<Op, Lhs, Rhs, Out>: Applicator2<Op, Lhs, Rhs, Out>;
+
+    type AddKernel: BinaryOp;
 
     /*fn contiguous_apply2<Operation, Left, Right, Out, Op, Scalar>(
         lhs: &Left,
@@ -29,14 +31,18 @@ pub trait ContainerLength {
     fn len(&self) -> usize;
 }
 
+pub trait ContainerScalar {
+    type Scalar: Copy;
+}
+
 /// A trait marking an object as a storage medium. It may or may not own the
 /// data that it contains.
 pub trait Storage:
     ContainerLength
+    + ContainerScalar
     + std::ops::Index<usize, Output = Self::Scalar>
     + std::ops::IndexMut<usize>
 {
-    type Scalar: Copy;
 }
 
 /// A trait marking an object as owning the data it contains. If this is the
@@ -54,12 +60,12 @@ pub trait OwnedStorage: Storage {
 }
 
 /// Allows access to (an evaluated) scalar result at a given index.
-pub trait ScalarAccessor: ContainerLength {
-    type Scalar: Copy;
-
+pub trait ScalarAccessor: ContainerLength + ContainerScalar {
     /// Return the `index`'th element of a data container or wrapper
     fn get_scalar(&self, index: usize) -> Self::Scalar;
 
     /// Write a value to the `index`'th element of a data container or wrapper
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
+
+// pub trait

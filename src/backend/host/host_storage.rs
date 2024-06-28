@@ -1,3 +1,4 @@
+use crate::backend::traits::ContainerScalar;
 use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
@@ -49,10 +50,15 @@ pub struct HostStorage<T> {
     pub length: usize,
 }
 
-impl<T> Storage for HostStorage<T>
-where
-    T: Copy,
-{
+impl<T> Storage for HostStorage<T> where T: Copy {}
+
+impl<T> ContainerLength for HostStorage<T> {
+    fn len(&self) -> usize {
+        self.length
+    }
+}
+
+impl<T> ContainerScalar for HostStorage<T> {
     type Scalar = T;
 }
 
@@ -145,18 +151,10 @@ impl<T> HostStorage<T> {
     }
 }
 
-impl<T> ContainerLength for HostStorage<T> {
-    fn len(&self) -> usize {
-        self.length
-    }
-}
-
 impl<T> ScalarAccessor for HostStorage<T>
 where
     T: Copy,
 {
-    type Scalar = T;
-
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self[index]
     }

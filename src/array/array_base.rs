@@ -55,14 +55,21 @@ where
     }
 }
 
-impl<StorageType, NDims> traits::ScalarAccessor
+impl<StorageType, NDims> traits::ContainerScalar
     for ArrayBase<HostBackend, StorageType, NDims>
 where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
     type Scalar = StorageType::Scalar;
+}
 
+impl<StorageType, NDims> traits::ScalarAccessor
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self.storage[index]
     }

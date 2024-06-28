@@ -2,9 +2,8 @@ use crate::backend::host::host_applicator::HostApplicator2;
 use crate::backend::host::host_kernels::HostAddKernel;
 use crate::backend::traits::OwnedStorage;
 use crate::{
-    array::array_base::ArrayBase,
-    array::function_2::Function2RefRef,
-    backend::{host::host_backend::HostBackend, traits},
+    array::array_base::ArrayBase, array::function_2::Function2RefRef,
+    backend::op_traits::Applicator2, backend::traits,
     dimension::dim::Dimension,
 };
 
@@ -16,11 +15,15 @@ where
     StorageType: traits::Storage,
     Dimensions: Dimension,
 {
-    // type Output = ArrayBase<Backend, StorageType, Dimensions>;
     type Output = Function2RefRef<
         'a,
-        HostApplicator2,
-        HostAddKernel,
+        Backend::Applicator2<
+            Backend::AddKernel,
+            StorageType,
+            StorageType,
+            StorageType,
+        >,
+        Backend::AddKernel,
         ArrayBase<Backend, StorageType, Dimensions>,
         ArrayBase<Backend, StorageType, Dimensions>,
     >;
@@ -29,13 +32,6 @@ where
         self,
         rhs: &'a ArrayBase<Backend, StorageType, Dimensions>,
     ) -> Self::Output {
-        // If contiguous, use Backend contiguous add
-
-        // If not contiguous, optimise the strides (order of traversal does not matter, so long
-        // as all values are accessed)
-
-        // todo!()
-
         Self::Output::new(self, rhs)
     }
 }

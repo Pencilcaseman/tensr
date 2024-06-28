@@ -1,4 +1,6 @@
-pub trait HostBinaryOp<T> {
+use crate::backend::op_traits::BinaryOp;
+
+pub trait HostBinaryOp<T>: BinaryOp {
     fn apply_scalar(lhs: T, rhs: T) -> T;
 }
 

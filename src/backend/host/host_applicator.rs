@@ -1,6 +1,6 @@
 use crate::backend::{
     host::host_kernels::HostBinaryOp, op_traits::Applicator2,
-    traits::ScalarAccessor,
+    traits::ContainerScalar, traits::ScalarAccessor,
 };
 use std::marker::PhantomData;
 
@@ -8,14 +8,28 @@ use std::marker::PhantomData;
     phantom_op: PhantomData<Op>,
 }*/
 
-pub struct HostApplicator2;
-
-impl<Op, Lhs, Rhs, Out, T> Applicator2<Op, Lhs, Rhs, Out> for HostApplicator2
+pub struct HostApplicator2<Op, Lhs, Rhs, Out>
 where
-    Op: HostBinaryOp<T>,
-    Lhs: ScalarAccessor<Scalar = T>,
-    Rhs: ScalarAccessor<Scalar = T>,
-    Out: ScalarAccessor<Scalar = T>,
+    Lhs: ContainerScalar,
+    Rhs: ContainerScalar<Scalar = Lhs::Scalar>,
+    Out: ContainerScalar<Scalar = Lhs::Scalar>,
+    Op: HostBinaryOp<Lhs::Scalar>,
+{
+    phantom_op: PhantomData<Op>,
+    phantom_lhs: PhantomData<Lhs>,
+    phantom_rhs: PhantomData<Rhs>,
+    phantom_out: PhantomData<Out>,
+}
+
+impl<Op, Lhs, Rhs, Out> Applicator2<Op, Lhs, Rhs, Out>
+    for HostApplicator2<Op, Lhs, Rhs, Out>
+where
+    Op: HostBinaryOp<Lhs::Scalar>,
+    Lhs: ScalarAccessor + ContainerScalar,
+    Rhs: ScalarAccessor<Scalar = Lhs::Scalar>
+        + ContainerScalar<Scalar = Lhs::Scalar>,
+    Out: ScalarAccessor<Scalar = Lhs::Scalar>
+        + ContainerScalar<Scalar = Lhs::Scalar>,
 {
     fn apply_contiguous(lhs: &Lhs, rhs: &Rhs, out: &mut Out) {
         #[cold]
