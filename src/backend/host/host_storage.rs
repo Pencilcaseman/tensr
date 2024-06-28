@@ -2,6 +2,7 @@ use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
 };
+use crate::dimension::dim::Dimension;
 use rayon::prelude::*;
 use std::ptr::NonNull;
 
@@ -48,12 +49,35 @@ pub struct HostStorage<T> {
     pub length: usize,
 }
 
-impl<T> Storage for HostStorage<T> {}
+impl<T> Storage for HostStorage<T>
+where
+    T: Copy,
+{
+    type Scalar = T;
+}
 
-impl<T> OwnedStorage for HostStorage<T> {}
+impl<T> OwnedStorage for HostStorage<T>
+where
+    T: Copy,
+{
+    fn new_from_shape<Dim>(shape: &Dim) -> Self
+    where
+        Dim: Dimension,
+        Self::Scalar: Default,
+    {
+        Self::new(shape.len() as usize)
+    }
+
+    unsafe fn new_from_shape_uninit<Dim>(shape: &Dim) -> Self
+    where
+        Dim: Dimension,
+    {
+        Self::new_uninit(shape.len() as usize)
+    }
+}
 
 impl<T> HostStorage<T> {
-    /// Create a new [`HostStorage`] object with [`length`] elements, all initialized to
+    /// Create a new [`HostStorage`] object with `length` elements, all initialized to
     /// `T::default()`.
     ///
     /// # Example
@@ -89,7 +113,7 @@ impl<T> HostStorage<T> {
         }
     }
 
-    /// Create a new [`HostStorage`] object with [`length`] elements, not initializing the
+    /// Create a new [`HostStorage`] object with `length` elements, not initializing the
     /// memory. For trivial types, this might be fine, but for types which require
     /// construction, this may cause problems if you are not careful.
     ///
@@ -120,12 +144,6 @@ impl<T> HostStorage<T> {
         }
     }
 }
-
-impl<T> Backend for HostStorage<T> {
-    type OwnedStorage<V> = HostStorage<V>;
-}
-
-impl<T> HostBackend for HostStorage<T> {}
 
 impl<T> ContainerLength for HostStorage<T> {
     fn len(&self) -> usize {

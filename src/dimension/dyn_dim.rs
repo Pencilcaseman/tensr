@@ -15,6 +15,7 @@ use crate::{
 /// cases will likely yield a performance improvement in general.
 const MAX_STACK_DIMS: usize = 4;
 
+#[derive(Debug)]
 pub enum DynIndex {
     /// Stack-allocated array storing `.0` dimensions
     Stack(DimLen, [UDim; MAX_STACK_DIMS]),
@@ -23,7 +24,20 @@ pub enum DynIndex {
     Heap(Box<[UDim]>),
 }
 
+impl Clone for DynIndex {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Stack(l, h) => Self::Stack(*l, h.clone()),
+            Self::Heap(b) => Self::Heap(b.clone()),
+        }
+    }
+}
+
 impl DynIndex {
+    pub fn zero() -> Self {
+        Self::Stack(0, [0; MAX_STACK_DIMS])
+    }
+
     pub fn len(&self) -> DimLen {
         match self {
             Self::Stack(l, _) => *l,
@@ -92,13 +106,13 @@ macro_rules! dyn_index_index {
 dyn_index_index!(usize);
 dyn_index_index!(DimLen);
 
-/// Represnts a dynamically-dimensioned container. For example, this may
+/// Represents a dynamically-dimensioned container. For example, this may
 /// be useful when reading an array from a file or user-input.
 pub type DimDyn = Dim<DynIndex>;
 
 impl DimDyn {
     /// Create a new [`DimDyn`] instance from a value. The value must be
-    /// convertable into a [`&[V]`], where [`V`] can be copied and cast
+    /// convertable into a `&[V]`, where `V` can be copied and cast
     /// into a [`UDim`].
     pub fn new_from<T, V>(index: T) -> Self
     where
@@ -128,59 +142,14 @@ impl DimDyn {
     }
 }
 
-// macro_rules! dim_dyn_from_impl {
-//     ($($t: ty),*) => {
-//         $(
-//             paste::paste! {
-//                 impl DimDynNewFrom<$t> for DimDyn {
-//                     fn new_from(index: $t) -> Self {
-//                         Self::new(
-//                             match index.len() {
-//                                 stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
-//                                     let mut data = [0; MAX_STACK_DIMS];
-//                                     for i in 0..stack {
-//                                         data[i as usize] = index[i] as UDim;
-//                                     }
-
-//                                     DynIndex::Stack(stack as DimLen, data)
-//                                 }
-//                                 heap => {
-//                                     let mut data = Vec::with_capacity(heap as usize);
-
-//                                     for i in 0..heap {
-//                                         data.push(index[i] as UDim);
-//                                     }
-
-//                                     DynIndex::Heap(data.into_boxed_slice())
-//                                 }
-//                             }
-//                         )
-//                     }
-//                 }
-//             }
-//         )*
-//     };
-// }
-
-// macro_rules! dim_dyn_from_dim {
-//     ($($dim: literal),*) => {
-//         paste::paste! {
-//             dim_dyn_from_impl!($(
-//                 dim::[< Dim $dim >]
-//             ),*);
-//         }
-//     };
-// }
-
-// dim_dyn_from_impl!(Vec<usize>);
-
-// pub trait DimDynNewFrom<Index> {
-//     fn new_from(index: Index) -> Self;
-// }
-
-// repeat_for_dims!(dim_dyn_from_dim);
-
 impl Dimension for DimDyn {
+    type IndexScalar = UDim;
+    type Index = DynIndex;
+
+    fn zero() -> Self {
+        Self::new(DynIndex::zero())
+    }
+
     fn len(&self) -> DimLen {
         match self.get() {
             DynIndex::Stack(l, _) => *l,
@@ -195,6 +164,10 @@ impl Dimension for DimDyn {
             }
             DynIndex::Heap(b) => b.iter().fold(1, |acc, n| acc * n),
         }
+    }
+
+    unsafe fn get_mut(&mut self) -> &mut Self::Index {
+        &mut self.index
     }
 }
 

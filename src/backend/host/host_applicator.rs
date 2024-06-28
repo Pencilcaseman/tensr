@@ -4,12 +4,13 @@ use crate::backend::{
 };
 use std::marker::PhantomData;
 
-pub struct HostApplicator2<Op> {
+/*pub struct HostApplicator2<Op> {
     phantom_op: PhantomData<Op>,
-}
+}*/
 
-impl<Op, Lhs, Rhs, Out, T> Applicator2<Op, Lhs, Rhs, Out, T>
-    for HostApplicator2<Op>
+pub struct HostApplicator2;
+
+impl<Op, Lhs, Rhs, Out, T> Applicator2<Op, Lhs, Rhs, Out> for HostApplicator2
 where
     Op: HostBinaryOp<T>,
     Lhs: ScalarAccessor<Scalar = T>,

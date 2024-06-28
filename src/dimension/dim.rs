@@ -9,15 +9,28 @@ macro_rules! repeat_for_dims {
 
 /// Traits and functions required for anything that can represent the
 /// dimensions of an object.
-pub trait Dimension: std::fmt::Debug + Clone + std::ops::Index<DimLen> {
+pub trait Dimension:
+    std::fmt::Debug + Clone + std::ops::Index<DimLen, Output = Self::IndexScalar>
+{
+    type IndexScalar: From<u16>
+        + std::ops::Mul
+        + std::ops::MulAssign
+        + Copy
+        + std::fmt::Debug;
+    type Index: std::ops::Index<usize, Output = Self::IndexScalar>
+        + std::ops::IndexMut<usize>
+        + Clone;
+
+    fn zero() -> Self;
     fn len(&self) -> DimLen;
     fn size(&self) -> usize;
+
+    unsafe fn get_mut(&mut self) -> &mut Self::Index;
 }
 
 /// Represents the number of dimensions stored by an object
-#[derive(Clone)]
 pub struct Dim<Index> {
-    index: Index,
+    pub(crate) index: Index,
 }
 
 impl<Index> Dim<Index> {
@@ -26,7 +39,7 @@ impl<Index> Dim<Index> {
         Self { index }
     }
 
-    /// Access to the value of type [`Index`] in this [`Dim<Index>`]
+    /// Access to the value of type `Index` in this [`Dim<Index>`]
     ///
     /// # Example
     /// ```rust
@@ -40,12 +53,15 @@ impl<Index> Dim<Index> {
     pub fn get(&self) -> &Index {
         &self.index
     }
-
-    /// Mutable access to the value of type [`Index`] in this [`Dim<Index>`]
-    pub(crate) unsafe fn get_mut(&mut self) -> &mut Index {
-        &mut self.index
-    }
 }
+
+/*impl<Index> std::ops::Index<DimLen> for Dim<Index> {
+    type Output = Index;
+
+    fn index(&self, index: DimLen) -> &Self::Output {
+        &self.index[index as usize]
+    }
+}*/
 
 macro_rules! dim_def {
     ($($n: literal),*) => {
@@ -53,12 +69,23 @@ macro_rules! dim_def {
         paste::paste! {
             pub type [< Dim $n >] = Dim<[UDim; $n]>;
             impl Dimension for [< Dim $n >] {
+                type IndexScalar = UDim;
+                type Index = [UDim; $n];
+
+                fn zero() -> Self {
+                    Self::new([UDim::from(0u16); $n])
+                }
+
                 fn len(&self) -> DimLen {
                     $n
                 }
 
                 fn size(&self) -> usize {
                     (0..$n).into_iter().fold(1, |acc, i| acc * self.index[i])
+                }
+
+                unsafe fn get_mut(&mut self) -> &mut Self::Index {
+                    &mut self.index
                 }
             }
 
@@ -73,6 +100,12 @@ macro_rules! dim_def {
 
                 fn index(&self, index: DimLen) -> &Self::Output {
                     &self.index[index as usize]
+                }
+            }
+
+            impl Clone for [< Dim $n >] {
+                fn clone(&self) -> Self {
+                    Self::new(self.index.clone())
                 }
             }
         }
