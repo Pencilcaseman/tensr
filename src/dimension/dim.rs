@@ -22,8 +22,8 @@ pub trait Dimension:
         + Clone;
 
     fn zero() -> Self;
-    fn len(&self) -> DimLen;
-    fn size(&self) -> usize;
+    fn ndim(&self) -> DimLen;
+    fn len(&self) -> usize;
 
     unsafe fn get_mut(&mut self) -> &mut Self::Index;
 }
@@ -76,11 +76,11 @@ macro_rules! dim_def {
                     Self::new([UDim::from(0u16); $n])
                 }
 
-                fn len(&self) -> DimLen {
+                fn ndim(&self) -> DimLen {
                     $n
                 }
 
-                fn size(&self) -> usize {
+                fn len(&self) -> usize {
                     (0..$n).into_iter().fold(1, |acc, i| acc * self.index[i])
                 }
 

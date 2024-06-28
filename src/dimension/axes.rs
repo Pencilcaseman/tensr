@@ -13,7 +13,7 @@ impl<Dim: Dimension> Axes<Dim> {
     {
         let mut stride = Dim::zero();
 
-        let mut l = shape.len();
+        let mut l = shape.ndim();
         let mut s = Dim::IndexScalar::from(1u16);
         for i in 0..l {
             let j = l - i - 1;
@@ -24,7 +24,7 @@ impl<Dim: Dimension> Axes<Dim> {
                 stride.get_mut()[j as usize] = s.clone();
             }
 
-            s *= shape[j].clone();
+            s *= shape[j as DimLen].clone();
         }
 
         Self { shape, stride }

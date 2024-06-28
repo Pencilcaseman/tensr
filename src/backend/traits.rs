@@ -25,9 +25,17 @@ pub trait Backend {
         Out: ScalarAccessor<Scalar = Scalar>;*/
 }
 
+pub trait ContainerLength {
+    fn len(&self) -> usize;
+}
+
 /// A trait marking an object as a storage medium. It may or may not own the
 /// data that it contains.
-pub trait Storage: std::ops::Index<usize> + std::ops::IndexMut<usize> {
+pub trait Storage:
+    ContainerLength
+    + std::ops::Index<usize, Output = Self::Scalar>
+    + std::ops::IndexMut<usize>
+{
     type Scalar: Copy;
 }
 
@@ -43,10 +51,6 @@ pub trait OwnedStorage: Storage {
     unsafe fn new_from_shape_uninit<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension;
-}
-
-pub trait ContainerLength {
-    fn len(&self) -> usize;
 }
 
 /// Allows access to (an evaluated) scalar result at a given index.

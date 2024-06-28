@@ -150,14 +150,14 @@ impl Dimension for DimDyn {
         Self::new(DynIndex::zero())
     }
 
-    fn len(&self) -> DimLen {
+    fn ndim(&self) -> DimLen {
         match self.get() {
             DynIndex::Stack(l, _) => *l,
             DynIndex::Heap(b) => b.len() as DimLen,
         }
     }
 
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         match self.get() {
             DynIndex::Stack(l, h) => {
                 (0..(*l as usize)).into_iter().fold(1, |acc, n| acc * h[n])
@@ -220,8 +220,8 @@ impl std::ops::Index<DimLen> for DimDyn {
             panic!("index (is {index}) must be <= len (is {len})");
         }
 
-        if index >= self.len() {
-            assert_failed(index, self.len());
+        if index >= self.ndim() {
+            assert_failed(index, self.ndim());
         }
 
         match self.get() {

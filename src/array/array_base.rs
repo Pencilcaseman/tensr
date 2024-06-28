@@ -1,3 +1,4 @@
+use crate::backend::host::host_backend::HostBackend;
 use crate::{
     backend::traits,
     dimension::{axes::Axes, dim::Dimension},
@@ -40,5 +41,33 @@ where
 
     pub fn strides(&self) -> &NDims {
         &self.axes.stride
+    }
+}
+
+impl<StorageType, NDims> traits::ContainerLength
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn len(&self) -> usize {
+        self.storage.len()
+    }
+}
+
+impl<StorageType, NDims> traits::ScalarAccessor
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Scalar = StorageType::Scalar;
+
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self.storage[index]
+    }
+
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        self.storage[index] = value;
     }
 }
