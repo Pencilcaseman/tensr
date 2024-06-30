@@ -1,4 +1,8 @@
-use crate::backend::op_traits::{Applicator2, BinaryOp};
+//! Traits and types for defining and implementing backends for arrays. This
+//! includes Backend structs and storage types.
+
+use crate::backend::op_traits;
+use crate::backend::op_traits::BinaryOp;
 use crate::dimension::dim::Dimension;
 
 /// The [`Backend`] trait is used to mark structs as a valid backend for
@@ -12,19 +16,7 @@ pub trait Backend {
     where
         T: Copy;
 
-    type Applicator2<Op, Lhs, Rhs, Out>: Applicator2<Op, Lhs, Rhs, Out>;
-
-    type AddKernel: BinaryOp;
-
-    /*fn contiguous_apply2<Operation, Left, Right, Out, Op, Scalar>(
-        lhs: &Left,
-        rhs: &Right,
-        out: &mut Out,
-    ) where
-        Operation: Applicator2<Op, Left, Right, Out, Scalar>,
-        Left: ScalarAccessor<Scalar = Scalar>,
-        Right: ScalarAccessor<Scalar = Scalar>,
-        Out: ScalarAccessor<Scalar = Scalar>;*/
+    type AddKernel: op_traits::BinaryOp;
 }
 
 pub trait ContainerLength {
@@ -33,6 +25,10 @@ pub trait ContainerLength {
 
 pub trait ContainerScalar {
     type Scalar: Copy;
+}
+
+pub trait ContainerStorage: ContainerLength + ContainerScalar {
+    type Storage: Storage;
 }
 
 /// A trait marking an object as a storage medium. It may or may not own the
@@ -68,4 +64,12 @@ pub trait ScalarAccessor: ContainerLength + ContainerScalar {
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
 
-// pub trait
+pub trait RawAccessor: ContainerStorage {
+    /// Return a reference to the underlying storage
+    unsafe fn get_raw(&self) -> &Self::Storage;
+
+    /// Return a mutable reference to the underlying storage
+    unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
+}
+
+pub trait LazyArrayObject: ContainerStorage {}

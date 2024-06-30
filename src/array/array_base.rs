@@ -44,26 +44,6 @@ where
     }
 }
 
-impl<StorageType, NDims> traits::ContainerLength
-    for ArrayBase<HostBackend, StorageType, NDims>
-where
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-    fn len(&self) -> usize {
-        self.storage.len()
-    }
-}
-
-impl<StorageType, NDims> traits::ContainerScalar
-    for ArrayBase<HostBackend, StorageType, NDims>
-where
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-    type Scalar = StorageType::Scalar;
-}
-
 impl<StorageType, NDims> traits::ScalarAccessor
     for ArrayBase<HostBackend, StorageType, NDims>
 where
@@ -77,4 +57,45 @@ where
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         self.storage[index] = value;
     }
+}
+
+impl<Backend, StorageType, NDims> traits::ContainerLength
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn len(&self) -> usize {
+        self.storage.len()
+    }
+}
+
+impl<Backend, StorageType, NDims> traits::ContainerScalar
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Scalar = StorageType::Scalar;
+}
+
+impl<Backend, StorageType, NDims> traits::ContainerStorage
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Storage = StorageType;
+}
+
+impl<Backend, StorageType, NDims> traits::LazyArrayObject
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
 }

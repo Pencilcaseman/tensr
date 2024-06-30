@@ -1,29 +1,77 @@
 use crate::backend::op_traits;
+use crate::backend::traits;
 use std::marker::PhantomData;
 
-pub struct Function2RefRef<'a, Applicator, Op, Lhs, Rhs> {
-    lhs: &'a Lhs,
-    rhs: &'a Rhs,
-    applicator_phantom: PhantomData<Applicator>,
-    op_phantom: PhantomData<Op>,
+pub trait Function2<Out> {
+    fn apply(&self, out: &mut Out);
 }
 
-impl<'a, Applicator, Op, Lhs, Rhs>
-    Function2RefRef<'a, Applicator, Op, Lhs, Rhs>
+pub struct Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
+{
+    pub(crate) lhs: &'a Lhs,
+    pub(crate) rhs: &'a Rhs,
+    pub(crate) backend: PhantomData<Backend>,
+    pub(crate) op_phantom: PhantomData<Op>,
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> traits::ContainerLength
+    for Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
+{
+    fn len(&self) -> usize {
+        self.lhs.len()
+    }
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> traits::ContainerScalar
+    for Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
+{
+    type Scalar = Lhs::Scalar;
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> traits::ContainerStorage
+    for Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
+{
+    type Storage = Lhs::Storage;
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> traits::LazyArrayObject
+    for Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
+{
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> Function2RefRef<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: traits::LazyArrayObject,
+    Rhs: traits::LazyArrayObject,
 {
     pub fn new(lhs: &'a Lhs, rhs: &'a Rhs) -> Self {
-        Self {
-            lhs,
-            rhs,
-            applicator_phantom: PhantomData,
-            op_phantom: PhantomData,
-        }
-    }
-
-    pub fn apply<Out>(&self, out: &mut Out)
-    where
-        Applicator: op_traits::Applicator2<Op, Lhs, Rhs, Out>,
-    {
-        Applicator::apply_contiguous(self.lhs, self.rhs, out);
+        Self { lhs, rhs, backend: PhantomData, op_phantom: PhantomData }
     }
 }

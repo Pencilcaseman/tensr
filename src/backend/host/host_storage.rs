@@ -1,4 +1,4 @@
-use crate::backend::traits::ContainerScalar;
+use crate::backend::traits::{ContainerScalar, ContainerStorage, RawAccessor};
 use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
@@ -58,8 +58,18 @@ impl<T> ContainerLength for HostStorage<T> {
     }
 }
 
-impl<T> ContainerScalar for HostStorage<T> {
+impl<T> ContainerScalar for HostStorage<T>
+where
+    T: Copy,
+{
     type Scalar = T;
+}
+
+impl<T> ContainerStorage for HostStorage<T>
+where
+    T: Copy,
+{
+    type Storage = Self;
 }
 
 impl<T> OwnedStorage for HostStorage<T>
@@ -151,19 +161,6 @@ impl<T> HostStorage<T> {
     }
 }
 
-impl<T> ScalarAccessor for HostStorage<T>
-where
-    T: Copy,
-{
-    fn get_scalar(&self, index: usize) -> Self::Scalar {
-        self[index]
-    }
-
-    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
-        self[index] = value;
-    }
-}
-
 impl<T> HostStorage<T>
 where
     T: Send + Sync,
@@ -205,6 +202,32 @@ where
                 }
             },
         )
+    }
+}
+
+impl<T> ScalarAccessor for HostStorage<T>
+where
+    T: Copy,
+{
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self[index]
+    }
+
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        self[index] = value;
+    }
+}
+
+impl<T> RawAccessor for HostStorage<T>
+where
+    T: Copy,
+{
+    unsafe fn get_raw(&self) -> &Self::Storage {
+        self
+    }
+
+    unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage {
+        self
     }
 }
 
