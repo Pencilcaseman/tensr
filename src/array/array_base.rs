@@ -71,7 +71,7 @@ where
     }
 }
 
-impl<Backend, StorageType, NDims> traits::ContainerScalar
+impl<Backend, StorageType, NDims> traits::ContainerScalarType
     for ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
@@ -81,7 +81,7 @@ where
     type Scalar = StorageType::Scalar;
 }
 
-impl<Backend, StorageType, NDims> traits::ContainerStorage
+impl<Backend, StorageType, NDims> traits::ContainerStorageType
     for ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
@@ -89,6 +89,16 @@ where
     NDims: Dimension,
 {
     type Storage = StorageType;
+}
+
+impl<Backend, StorageType, NDims> traits::ContainerBackendType
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Backend = Backend;
 }
 
 impl<Backend, StorageType, NDims> traits::LazyArrayObject

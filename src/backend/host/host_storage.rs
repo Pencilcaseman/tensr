@@ -1,4 +1,6 @@
-use crate::backend::traits::{ContainerScalar, ContainerStorage, RawAccessor};
+use crate::backend::traits::{
+    ContainerScalarType, ContainerStorageType, RawAccessor,
+};
 use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
@@ -58,14 +60,14 @@ impl<T> ContainerLength for HostStorage<T> {
     }
 }
 
-impl<T> ContainerScalar for HostStorage<T>
+impl<T> ContainerScalarType for HostStorage<T>
 where
     T: Copy,
 {
     type Scalar = T;
 }
 
-impl<T> ContainerStorage for HostStorage<T>
+impl<T> ContainerStorageType for HostStorage<T>
 where
     T: Copy,
 {

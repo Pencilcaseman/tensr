@@ -23,19 +23,23 @@ pub trait ContainerLength {
     fn len(&self) -> usize;
 }
 
-pub trait ContainerScalar {
+pub trait ContainerScalarType {
     type Scalar: Copy;
 }
 
-pub trait ContainerStorage: ContainerLength + ContainerScalar {
+pub trait ContainerStorageType: ContainerLength + ContainerScalarType {
     type Storage: Storage;
+}
+
+pub trait ContainerBackendType: ContainerStorageType {
+    type Backend: Backend;
 }
 
 /// A trait marking an object as a storage medium. It may or may not own the
 /// data that it contains.
 pub trait Storage:
     ContainerLength
-    + ContainerScalar
+    + ContainerScalarType
     + std::ops::Index<usize, Output = Self::Scalar>
     + std::ops::IndexMut<usize>
 {
@@ -56,7 +60,7 @@ pub trait OwnedStorage: Storage {
 }
 
 /// Allows access to (an evaluated) scalar result at a given index.
-pub trait ScalarAccessor: ContainerLength + ContainerScalar {
+pub trait ScalarAccessor: ContainerLength + ContainerScalarType {
     /// Return the `index`'th element of a data container or wrapper
     fn get_scalar(&self, index: usize) -> Self::Scalar;
 
@@ -64,7 +68,7 @@ pub trait ScalarAccessor: ContainerLength + ContainerScalar {
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
 
-pub trait RawAccessor: ContainerStorage {
+pub trait RawAccessor: ContainerStorageType {
     /// Return a reference to the underlying storage
     unsafe fn get_raw(&self) -> &Self::Storage;
 
@@ -72,4 +76,4 @@ pub trait RawAccessor: ContainerStorage {
     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
 }
 
-pub trait LazyArrayObject: ContainerStorage {}
+pub trait LazyArrayObject: ContainerStorageType + ContainerBackendType {}

@@ -4,27 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["max_array_dim_7"]
-
-# If every dimension of your matrices will be smaller than 2^16=65_536,
-# The [`Shape`] type can use u16s to represent dimensions, saving space
-# and reducing the amount of data that needs to be copied.
-small_matrix_dimensions = []
-
-# Sets the maximum number of dimensions an array can have
-# A smaller value will be faster, but potentially more limiting depending on
-# your use case.
-max_array_dim_8 = ["max_array_dim_7"]
-max_array_dim_7 = ["max_array_dim_6"]
-max_array_dim_6 = ["max_array_dim_5"]
-max_array_dim_5 = ["max_array_dim_4"]
-max_array_dim_4 = ["max_array_dim_3"]
-max_array_dim_3 = ["max_array_dim_2"]
-max_array_dim_2 = []
 
 [dependencies]
+tensr_proc_macros = { path = "crates/tensr_proc_macros" }
 paste = "1.0"
 rayon = "1.10.0"
+
+[workspace]
+members = ["crates/*"]
 
 [dev-dependencies]
 

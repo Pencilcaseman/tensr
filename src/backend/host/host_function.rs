@@ -9,6 +9,22 @@ use crate::backend::host::host_backend::HostBackend;
 use crate::backend::host::host_kernels;
 use crate::backend::traits;
 
+impl<'a, Op, Lhs, Rhs> traits::ScalarAccessor
+    for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
+where
+    Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
+    Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
+    Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+{
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        Op::apply_scalar(self.lhs.get_scalar(index), self.rhs.get_scalar(index))
+    }
+
+    fn write_scalar(&mut self, _value: Self::Scalar, _index: usize) {
+        panic!("Cannot write to a Function2RefRef");
+    }
+}
+
 impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
     for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
 where
