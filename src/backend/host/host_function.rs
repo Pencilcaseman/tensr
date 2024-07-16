@@ -1,9 +1,3 @@
-/*use crate::backend::{
-    host::host_backend::HostBackend, host::host_kernels::HostBinaryOp,
-    traits::ContainerScalar, traits::ScalarAccessor,
-};*/
-// use std::marker::PhantomData;
-
 use crate::array::function_2;
 use crate::backend::host::host_backend::HostBackend;
 use crate::backend::host::host_kernels;
@@ -16,8 +10,12 @@ where
     Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
     Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
 {
+    #[inline(always)]
     fn get_scalar(&self, index: usize) -> Self::Scalar {
-        Op::apply_scalar(self.lhs.get_scalar(index), self.rhs.get_scalar(index))
+        Op::apply_scalar(
+            self.arg0.get_scalar(index),
+            self.arg1.get_scalar(index),
+        )
     }
 
     fn write_scalar(&mut self, _value: Self::Scalar, _index: usize) {
@@ -34,11 +32,32 @@ where
     Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
 {
     fn apply(&self, out: &mut Out) {
-        for i in 0..self.lhs.len() {
+        for i in 0..self.arg0.len() {
             out.write_scalar(
                 Op::apply_scalar(
-                    self.lhs.get_scalar(i),
-                    self.rhs.get_scalar(i),
+                    self.arg0.get_scalar(i),
+                    self.arg1.get_scalar(i),
+                ),
+                i,
+            );
+        }
+    }
+}
+
+impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
+    for function_2::Function2OwnRef<'a, HostBackend, Op, Lhs, Rhs>
+where
+    Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
+    Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
+    Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+    Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+{
+    fn apply(&self, out: &mut Out) {
+        for i in 0..self.arg0.len() {
+            out.write_scalar(
+                Op::apply_scalar(
+                    self.arg0.get_scalar(i),
+                    self.arg1.get_scalar(i),
                 ),
                 i,
             );

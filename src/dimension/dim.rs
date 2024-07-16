@@ -25,6 +25,16 @@ pub trait Dimension:
     fn ndim(&self) -> DimLen;
     fn len(&self) -> usize;
 
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Return a mutable reference to the underlying storage.
+    ///
+    /// # Safety
+    /// If the dimension values are not treated carefully, undefined, invalid,
+    /// or incorrect behaviour may result, assuming the program doesn't crash
+    /// immediately.
     unsafe fn get_mut(&mut self) -> &mut Self::Index;
 }
 
@@ -35,7 +45,7 @@ pub struct Dim<Index> {
 
 impl<Index> Dim<Index> {
     /// Creates a new [`Dim<Index>`].
-    pub fn new(index: Index) -> Self {
+    pub const fn new(index: Index) -> Self {
         Self { index }
     }
 
@@ -50,18 +60,10 @@ impl<Index> Dim<Index> {
     /// assert_eq!(dim_2d.get()[0], 3);
     /// assert_eq!(dim_2d.get()[1], 4);
     /// ```
-    pub fn get(&self) -> &Index {
+    pub const fn get(&self) -> &Index {
         &self.index
     }
 }
-
-/*impl<Index> std::ops::Index<DimLen> for Dim<Index> {
-    type Output = Index;
-
-    fn index(&self, index: DimLen) -> &Self::Output {
-        &self.index[index as usize]
-    }
-}*/
 
 macro_rules! dim_def {
     ($($n: literal),*) => {
@@ -131,7 +133,7 @@ mod test {
                         }
                         let dim = [< Dim $dim >]::new(data);
 
-                        assert_eq!(dim.len(), $dim);
+                        assert_eq!(dim.ndim(), $dim);
 
                         for i in 0..$dim {
                             assert_eq!(dim.get()[i], i + 1);
@@ -155,7 +157,7 @@ mod test {
                         }
                         let mut dim = [< Dim $dim >]::new(data);
 
-                        assert_eq!(dim.len(), $dim);
+                        assert_eq!(dim.ndim(), $dim);
 
                         for i in 0..$dim {
                             assert_eq!(dim.get()[i], i + 1);
@@ -192,7 +194,7 @@ mod test {
                         }
                         let dim = [< Dim $dim >]::new(data);
 
-                        assert_eq!(dim.size(), target);
+                        assert_eq!(dim.len(), target);
                     }
                 }
             )*

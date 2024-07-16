@@ -1,6 +1,4 @@
-use crate::backend::traits::{
-    ContainerScalarType, ContainerStorageType, RawAccessor,
-};
+use crate::backend::traits::{ContainerScalarType, ContainerStorageType};
 use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
@@ -16,17 +14,18 @@ use std::ptr::NonNull;
 pub const MEM_ALIGN: usize = 64;
 
 /// A non-null pointer which can be used in parallel blocks
+#[derive(Debug)]
 pub struct HostNonNull<T>(pub NonNull<T>);
 unsafe impl<T> Send for HostNonNull<T> {}
 unsafe impl<T> Sync for HostNonNull<T> {}
 
+impl<T> Copy for HostNonNull<T> {}
+
 impl<T> Clone for HostNonNull<T> {
     fn clone(&self) -> Self {
-        HostNonNull { 0: self.0.clone() }
+        *self
     }
 }
-
-impl<T> Copy for HostNonNull<T> {}
 
 /// An [`OwnedStorage`] object for data in host memory
 ///
@@ -50,9 +49,15 @@ impl<T> Copy for HostNonNull<T> {}
 pub struct HostStorage<T> {
     pub ptr: HostNonNull<T>,
     pub length: usize,
+    pub free_on_drop: bool,
 }
 
-impl<T> Storage for HostStorage<T> where T: Copy {}
+impl<T> Storage for HostStorage<T>
+where
+    T: Copy,
+{
+    unsafe fn set_no_free(&mut self) {}
+}
 
 impl<T> ContainerLength for HostStorage<T> {
     fn len(&self) -> usize {
@@ -78,19 +83,25 @@ impl<T> OwnedStorage for HostStorage<T>
 where
     T: Copy,
 {
+    type Raw = HostNonNull<T>;
+
     fn new_from_shape<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension,
         Self::Scalar: Default,
     {
-        Self::new(shape.len() as usize)
+        Self::new(shape.len())
     }
 
     unsafe fn new_from_shape_uninit<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension,
     {
-        Self::new_uninit(shape.len() as usize)
+        Self::new_uninit(shape.len())
+    }
+
+    unsafe fn get_raw(&self) -> Self::Raw {
+        self.ptr
     }
 }
 
@@ -109,6 +120,11 @@ impl<T> HostStorage<T> {
     ///     assert_eq!(host_storage[i], 0.0);
     /// }
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the memory allocation fails
+    #[must_use]
     pub fn new(length: usize) -> Self
     where
         T: Default,
@@ -127,7 +143,11 @@ impl<T> HostStorage<T> {
                 *data.add(i) = T::default();
             }
 
-            Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
+            Self {
+                ptr: HostNonNull(NonNull::new(data).unwrap()),
+                length,
+                free_on_drop: true,
+            }
         }
     }
 
@@ -142,6 +162,15 @@ impl<T> HostStorage<T> {
     /// let host_storage = unsafe { HostStorage::<f32>::new_uninit(10) };
     /// assert_eq!(host_storage.length, 10);
     /// ```
+    ///
+    /// # Safety
+    ///
+    /// Each element is uninitialized, and must be written to before being read
+    ///
+    /// # Panics
+    ///
+    /// Panics if the memory allocation fail
+    #[must_use]
     pub unsafe fn new_uninit(length: usize) -> Self {
         let data =
             std::alloc::alloc(std::alloc::Layout::from_size_align_unchecked(
@@ -150,7 +179,11 @@ impl<T> HostStorage<T> {
             ))
             .cast::<T>();
 
-        Self { ptr: HostNonNull(NonNull::new(data).unwrap()), length }
+        Self {
+            ptr: HostNonNull(NonNull::new(data).unwrap()),
+            length,
+            free_on_drop: false,
+        }
     }
 
     pub fn take_as_vec(&mut self) -> Vec<T> {
@@ -171,6 +204,7 @@ where
     ///
     /// If the length of the input is nto a multiple of the slice size, the
     /// remaining elements are ignored.
+    #[must_use]
     pub fn slice_par_iter(
         &self,
         slice_size: usize,
@@ -185,10 +219,11 @@ where
     ///
     /// If the length of the input is not a multiple of the slice size, the remaining
     /// elements are ignored.
-    pub fn slice_mut_par_iter<'a>(
-        &'a mut self,
+    #[must_use]
+    pub fn slice_mut_par_iter(
+        &mut self,
         slice_size: usize,
-    ) -> impl IndexedParallelIterator<Item = &'a mut [T]> + '_ {
+    ) -> impl IndexedParallelIterator<Item = &mut [T]> + '_ {
         let elements = self.length / slice_size;
         (0..elements).into_par_iter().map_init(
             || self.ptr,
@@ -220,23 +255,23 @@ where
     }
 }
 
-impl<T> RawAccessor for HostStorage<T>
-where
-    T: Copy,
-{
-    unsafe fn get_raw(&self) -> &Self::Storage {
-        self
-    }
-
-    unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage {
-        self
-    }
-}
+// impl<T> RawAccessor for HostStorage<T>
+// where
+//     T: Copy,
+// {
+//     unsafe fn get_raw(&self) -> &Self::Storage {
+//         self
+//     }
+//
+//     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage {
+//         self
+//     }
+// }
 
 impl<T> Drop for HostStorage<T> {
     fn drop(&mut self) {
         // If the length is zero, there is nothing to free
-        if self.length > 0 {
+        if self.free_on_drop && self.length > 0 {
             // We can convert the data into a vec and drop that instead, so
             // the logic is handled by the STL
             drop(self.take_as_vec());

@@ -21,6 +21,10 @@ pub trait Backend {
 
 pub trait ContainerLength {
     fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 pub trait ContainerScalarType {
@@ -29,6 +33,14 @@ pub trait ContainerScalarType {
 
 pub trait ContainerStorageType: ContainerLength + ContainerScalarType {
     type Storage: Storage;
+}
+
+pub trait ContainerStorageAccessor: ContainerStorageType {
+    /// Return a reference to the underlying storage
+    fn get_storage(&self) -> &Self::Storage;
+
+    /// Return a mutable reference to the underlying storage
+    fn get_storage_mut(&mut self) -> &mut Self::Storage;
 }
 
 pub trait ContainerBackendType: ContainerStorageType {
@@ -43,12 +55,23 @@ pub trait Storage:
     + std::ops::Index<usize, Output = Self::Scalar>
     + std::ops::IndexMut<usize>
 {
+    /// Mark the data to not be freed when the main object is dropped. This is
+    /// necessary for preventing invalid memory accesses when reusing the same
+    /// storage object.
+    ///
+    /// # Safety
+    /// The data MUST be freed elsewhere, otherwise a memory leak will occur.
+    unsafe fn set_no_free(&mut self);
 }
 
 /// A trait marking an object as owning the data it contains. If this is the
 /// case, the data must be stored contiguously and must be paired with a
 /// backend.
 pub trait OwnedStorage: Storage {
+    /// The raw type of the data stored by this object. For example, this may
+    /// be a pointer to the underlying data.
+    type Raw;
+
     fn new_from_shape<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension,
@@ -57,6 +80,13 @@ pub trait OwnedStorage: Storage {
     unsafe fn new_from_shape_uninit<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension;
+
+    /// Return a pointer to the underlying data.
+    ///
+    /// # Safety
+    /// The caller must ensure that the pointer is valid for the lifetime of
+    /// the object and that immutable data is not written to.
+    unsafe fn get_raw(&self) -> Self::Raw;
 }
 
 /// Allows access to (an evaluated) scalar result at a given index.
@@ -68,12 +98,12 @@ pub trait ScalarAccessor: ContainerLength + ContainerScalarType {
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
 
-pub trait RawAccessor: ContainerStorageType {
-    /// Return a reference to the underlying storage
-    unsafe fn get_raw(&self) -> &Self::Storage;
-
-    /// Return a mutable reference to the underlying storage
-    unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
-}
+// pub trait RawAccessor: ContainerStorageType {
+//     /// Return a reference to the underlying storage
+//     unsafe fn get_raw(&self) -> &Self::Storage;
+//
+//     /// Return a mutable reference to the underlying storage
+//     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
+// }
 
 pub trait LazyArrayObject: ContainerStorageType + ContainerBackendType {}

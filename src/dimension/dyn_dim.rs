@@ -27,21 +27,32 @@ pub enum DynIndex {
 impl Clone for DynIndex {
     fn clone(&self) -> Self {
         match self {
-            Self::Stack(l, h) => Self::Stack(*l, h.clone()),
+            Self::Stack(l, h) => Self::Stack(*l, *h),
             Self::Heap(b) => Self::Heap(b.clone()),
         }
     }
 }
 
 impl DynIndex {
-    pub fn zero() -> Self {
+    #[must_use]
+    pub const fn zero() -> Self {
         Self::Stack(0, [0; MAX_STACK_DIMS])
     }
 
-    pub fn len(&self) -> DimLen {
+    #[must_use]
+    pub const fn len(&self) -> DimLen {
+        #[allow(clippy::cast_possible_truncation)]
         match self {
             Self::Stack(l, _) => *l,
             Self::Heap(h) => h.len() as DimLen,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        match self {
+            Self::Stack(l, _) => *l == 0,
+            Self::Heap(h) => h.is_empty(),
         }
     }
 }
@@ -70,6 +81,7 @@ macro_rules! dyn_index_index {
                     panic!("index (is {index}) must be <= len (is {len})");
                 }
 
+                #[allow(clippy::cast_possible_truncation)]
                 if index as DimLen >= self.len() {
                     assert_failed(index as DimLen, self.len())
                 }
@@ -90,6 +102,7 @@ macro_rules! dyn_index_index {
                     panic!("index (is {index}) must be <= len (is {len})");
                 }
 
+                #[allow(clippy::cast_possible_truncation)]
                 if index as DimLen >= self.len() {
                     assert_failed(index as DimLen, self.len())
                 }
@@ -121,16 +134,17 @@ impl DimDyn {
         UDim: From<V>,
     {
         Self::new(match index.len() {
+            #[allow(clippy::cast_possible_truncation)]
             stack if stack as DimLen <= MAX_STACK_DIMS as DimLen => {
                 let mut data = [0; MAX_STACK_DIMS];
                 for i in 0..stack {
-                    data[i as usize] = UDim::from(index[i]);
+                    data[i] = UDim::from(index[i]);
                 }
 
                 DynIndex::Stack(stack as DimLen, data)
             }
             heap => {
-                let mut data = Vec::with_capacity(heap as usize);
+                let mut data = Vec::with_capacity(heap);
 
                 for i in 0..heap {
                     data.push(UDim::from(index[i]));
@@ -151,6 +165,7 @@ impl Dimension for DimDyn {
     }
 
     fn ndim(&self) -> DimLen {
+        #[allow(clippy::cast_possible_truncation)]
         match self.get() {
             DynIndex::Stack(l, _) => *l,
             DynIndex::Heap(b) => b.len() as DimLen,
@@ -160,9 +175,9 @@ impl Dimension for DimDyn {
     fn len(&self) -> usize {
         match self.get() {
             DynIndex::Stack(l, h) => {
-                (0..(*l as usize)).into_iter().fold(1, |acc, n| acc * h[n])
+                (0..(*l as usize)).fold(1, |acc, n| acc * h[n])
             }
-            DynIndex::Heap(b) => b.iter().fold(1, |acc, n| acc * n),
+            DynIndex::Heap(b) => b.iter().product(),
         }
     }
 
@@ -188,7 +203,7 @@ impl std::fmt::Debug for DimDyn {
             DynIndex::Heap(b) => {
                 for (i, v) in b.iter().enumerate() {
                     s.push_str(&format!("{v}"));
-                    if i + 1 < b.len() as usize {
+                    if i + 1 < b.len() {
                         s.push_str(", ");
                     }
                 }
@@ -203,7 +218,7 @@ impl std::fmt::Debug for DimDyn {
 impl Clone for DimDyn {
     fn clone(&self) -> Self {
         match self.get() {
-            DynIndex::Stack(l, h) => Self::new(DynIndex::Stack(*l, h.clone())),
+            DynIndex::Stack(l, h) => Self::new(DynIndex::Stack(*l, *h)),
             DynIndex::Heap(b) => Self::new(DynIndex::Heap(b.clone())),
         }
     }
@@ -254,7 +269,7 @@ mod test {
 
                         let dim = DimDyn::new_from(data);
 
-                        assert_eq!(dim.len(), $dim);
+                        assert_eq!(dim.ndim(), $dim);
 
                         for i in 0..$dim {
                             assert_eq!(dim[i], (i + 1) as UDim);
@@ -278,7 +293,7 @@ mod test {
 
                         let mut dim = DimDyn::new_from(data);
 
-                        assert_eq!(dim.len(), $dim);
+                        assert_eq!(dim.ndim(), $dim);
 
                         for i in 0..$dim {
                             assert_eq!(dim[i], (i + 1) as UDim);
@@ -314,7 +329,7 @@ mod test {
 
                         let dim = DimDyn::new_from(data);
 
-                        assert_eq!(dim.size(), target);
+                        assert_eq!(dim.len(), target);
                     }
                 }
             )*

@@ -1,6 +1,6 @@
-use crate::backend::host::host_backend::HostBackend;
 use crate::{
-    backend::traits,
+    array::array_traits::HasWriteableBuffer,
+    backend::{host::host_backend::HostBackend, traits},
     dimension::{axes::Axes, dim::Dimension},
 };
 
@@ -20,7 +20,7 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
-    pub fn new(axes: Axes<NDims>, storage: StorageType) -> Self
+    pub const fn new(axes: Axes<NDims>, storage: StorageType) -> Self
     where
         StorageType: traits::OwnedStorage,
     {
@@ -35,11 +35,11 @@ where
         Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
     }
 
-    pub fn shape(&self) -> &NDims {
+    pub const fn shape(&self) -> &NDims {
         &self.axes.shape
     }
 
-    pub fn strides(&self) -> &NDims {
+    pub const fn strides(&self) -> &NDims {
         &self.axes.stride
     }
 }
@@ -91,6 +91,22 @@ where
     type Storage = StorageType;
 }
 
+impl<Backend, StorageType, NDims> traits::ContainerStorageAccessor
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn get_storage(&self) -> &Self::Storage {
+        &self.storage
+    }
+
+    fn get_storage_mut(&mut self) -> &mut Self::Storage {
+        &mut self.storage
+    }
+}
+
 impl<Backend, StorageType, NDims> traits::ContainerBackendType
     for ArrayBase<Backend, StorageType, NDims>
 where
@@ -108,4 +124,22 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+}
+
+unsafe impl<Backend, StorageType, NDims> HasWriteableBuffer
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::OwnedStorage,
+    NDims: Dimension,
+{
+    type Buffer = StorageType::Raw;
+
+    unsafe fn get_buffer(&self) -> (Self::Buffer, usize) {
+        (self.storage.get_raw(), self.storage.len())
+    }
+
+    unsafe fn set_buffer_no_free(&mut self) {
+        self.storage.set_no_free();
+    }
 }
