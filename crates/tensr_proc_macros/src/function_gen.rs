@@ -174,6 +174,25 @@ pub fn function_gen(tok: TokenStream) -> TokenStream {
                 Self { #(#args),*, backend: PhantomData, op: PhantomData }
             }
         }
+
+        // unsafe impl #trait_types HasWriteableBuffer
+        // for #type_name #trait_types
+        //     #trait_bounds
+        // {
+        //     type Buffer = Arg0::Buffer;
+        //
+        //     unsafe fn get_buffer(&self) -> (Self::Buffer, usize) {
+        //         self.arg0.get_buffer()
+        //     }
+        //
+        //     unsafe fn get_buffer_checked(&self, len: usize) -> Option<Self::Buffer> {
+        //         self.arg0.get_buffer_checked(len)
+        //     }
+        //
+        //     unsafe fn set_buffer_no_free(&mut self) {
+        //         self.arg0.set_buffer_no_free();
+        //     }
+        // }
     };
 
     // We pretty-print the output for better error messages and debugging

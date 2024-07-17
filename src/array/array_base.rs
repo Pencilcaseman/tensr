@@ -1,5 +1,5 @@
 use crate::{
-    array::array_traits::HasWriteableBuffer,
+    array::array_traits::GetWriteableBuffer,
     backend::{host::host_backend::HostBackend, traits},
     dimension::{axes::Axes, dim::Dimension},
 };
@@ -126,20 +126,35 @@ where
 {
 }
 
-unsafe impl<Backend, StorageType, NDims> HasWriteableBuffer
+impl<Backend, StorageType, NDims> GetWriteableBuffer
     for ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
-    StorageType: traits::OwnedStorage,
+    StorageType: traits::Storage + GetWriteableBuffer,
     NDims: Dimension,
 {
-    type Buffer = StorageType::Raw;
+    type Buffer = StorageType::Buffer;
 
-    unsafe fn get_buffer(&self) -> (Self::Buffer, usize) {
-        (self.storage.get_raw(), self.storage.len())
-    }
+    // unsafe fn get_buffer(&self) -> (Self::Buffer, usize) {
+    //     (self.storage.get_raw(), self.storage.len())
+    // }
+    //
+    // unsafe fn get_buffer_checked(&self, len: usize) -> Option<Self::Buffer> {
+    //     if self.storage.len() >= len {
+    //         Some(self.storage.get_raw())
+    //     } else {
+    //         None
+    //     }
+    // }
+    //
+    // unsafe fn set_buffer_no_free(&mut self) {
+    //     self.storage.set_no_free();
+    // }
 
-    unsafe fn set_buffer_no_free(&mut self) {
-        self.storage.set_no_free();
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        len: usize,
+    ) -> Option<Self::Buffer> {
+        self.storage.get_buffer_and_set_no_free(len)
     }
 }

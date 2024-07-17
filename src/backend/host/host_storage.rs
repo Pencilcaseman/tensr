@@ -1,3 +1,4 @@
+use crate::array::array_traits::GetWriteableBuffer;
 use crate::backend::traits::{ContainerScalarType, ContainerStorageType};
 use crate::backend::{
     host::host_backend::HostBackend,
@@ -56,6 +57,8 @@ impl<T> Storage for HostStorage<T>
 where
     T: Copy,
 {
+    type OwnedStorageType = Self;
+
     unsafe fn set_no_free(&mut self) {}
 }
 
@@ -399,6 +402,22 @@ impl<T> std::ops::Index<std::ops::RangeInclusive<usize>> for HostStorage<T> {
                 self.ptr.0.as_ptr().add(*index.start()),
                 end - start + 1,
             )
+        }
+    }
+}
+
+impl<T> GetWriteableBuffer for HostStorage<T> {
+    type Buffer = HostNonNull<T>;
+
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        len: usize,
+    ) -> Option<Self::Buffer> {
+        if self.length >= len {
+            self.free_on_drop = false;
+            Some(self.ptr)
+        } else {
+            None
         }
     }
 }

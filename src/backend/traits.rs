@@ -1,6 +1,7 @@
 //! Traits and types for defining and implementing backends for arrays. This
 //! includes Backend structs and storage types.
 
+use crate::array::array_traits::GetWriteableBuffer;
 use crate::backend::op_traits;
 use crate::backend::op_traits::BinaryOp;
 use crate::dimension::dim::Dimension;
@@ -55,6 +56,9 @@ pub trait Storage:
     + std::ops::Index<usize, Output = Self::Scalar>
     + std::ops::IndexMut<usize>
 {
+    /// The equivalent storage type, but which owns the data it stores
+    type OwnedStorageType: OwnedStorage;
+
     /// Mark the data to not be freed when the main object is dropped. This is
     /// necessary for preventing invalid memory accesses when reusing the same
     /// storage object.
@@ -106,4 +110,7 @@ pub trait ScalarAccessor: ContainerLength + ContainerScalarType {
 //     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
 // }
 
-pub trait LazyArrayObject: ContainerStorageType + ContainerBackendType {}
+pub(crate) trait LazyArrayObject:
+    ContainerStorageType + ContainerBackendType
+{
+}
