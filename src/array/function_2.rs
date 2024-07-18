@@ -115,3 +115,21 @@ where
             .or(self.rhs.get_buffer_and_set_no_free(len))
     }
 }
+
+impl<'a, Backend, Op, Lhs, Rhs> GetWriteableBuffer
+    for &'a TensrFn2<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: GetWriteableBuffer,
+    Rhs: GetWriteableBuffer<Buffer = Lhs::Buffer>,
+{
+    type Buffer = Lhs::Buffer;
+
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        len: usize,
+    ) -> Option<Self::Buffer> {
+        None
+    }
+}

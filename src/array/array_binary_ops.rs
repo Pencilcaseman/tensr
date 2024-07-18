@@ -462,3 +462,87 @@ where
         Self::Output::new(self, rhs)
     }
 }
+
+// TensrFn2 + &ArrayBase
+impl<'a, Backend, Op, Lhs, Rhs, StorageTypeRhs, NDimsRhs>
+    std::ops::Add<&'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>>
+    for TensrFn2<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: GetWriteableBuffer,
+    Rhs: GetWriteableBuffer<Buffer = Lhs::Buffer>,
+    StorageTypeRhs: traits::Storage,
+    NDimsRhs: Dimension,
+{
+    type Output = TensrFn2<
+        'a,
+        Backend,
+        Backend::AddKernel,
+        TensrFn2<'a, Backend, Op, Lhs, Rhs>,
+        &'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    >;
+
+    fn add(
+        self,
+        rhs: &'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    ) -> Self::Output {
+        Self::Output::new(self, rhs)
+    }
+}
+
+// &TensrFn2 + ArrayBase
+impl<'a, Backend, Op, Lhs, Rhs, StorageTypeRhs, NDimsRhs>
+    std::ops::Add<ArrayBase<Backend, StorageTypeRhs, NDimsRhs>>
+    for &'a TensrFn2<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: GetWriteableBuffer,
+    Rhs: GetWriteableBuffer<Buffer = Lhs::Buffer>,
+    StorageTypeRhs: traits::Storage,
+    NDimsRhs: Dimension,
+{
+    type Output = TensrFn2<
+        'a,
+        Backend,
+        Backend::AddKernel,
+        &'a TensrFn2<'a, Backend, Op, Lhs, Rhs>,
+        ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    >;
+
+    fn add(
+        self,
+        rhs: ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    ) -> Self::Output {
+        Self::Output::new(self, rhs)
+    }
+}
+
+// &TensrFn2 + &ArrayBase
+impl<'a, Backend, Op, Lhs, Rhs, StorageTypeRhs, NDimsRhs>
+    std::ops::Add<&'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>>
+    for &'a TensrFn2<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: GetWriteableBuffer,
+    Rhs: GetWriteableBuffer<Buffer = Lhs::Buffer>,
+    StorageTypeRhs: traits::Storage,
+    NDimsRhs: Dimension,
+{
+    type Output = TensrFn2<
+        'a,
+        Backend,
+        Backend::AddKernel,
+        &'a TensrFn2<'a, Backend, Op, Lhs, Rhs>,
+        &'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    >;
+
+    fn add(
+        self,
+        rhs: &'a ArrayBase<Backend, StorageTypeRhs, NDimsRhs>,
+    ) -> Self::Output {
+        Self::Output::new(self, rhs)
+    }
+}
