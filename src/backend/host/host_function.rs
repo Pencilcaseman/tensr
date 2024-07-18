@@ -3,67 +3,67 @@ use crate::backend::host::host_backend::HostBackend;
 use crate::backend::host::host_kernels;
 use crate::backend::traits;
 
-impl<'a, Op, Lhs, Rhs> traits::ScalarAccessor
-    for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
-where
-    Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
-    Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
-    Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
-{
-    #[inline(always)]
-    fn get_scalar(&self, index: usize) -> Self::Scalar {
-        Op::apply_scalar(
-            self.arg0.get_scalar(index),
-            self.arg1.get_scalar(index),
-        )
-    }
-
-    fn write_scalar(&mut self, _value: Self::Scalar, _index: usize) {
-        panic!("Cannot write to a Function2RefRef");
-    }
-}
-
-impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
-    for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
-where
-    Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
-    Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
-    Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
-    Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
-{
-    fn apply(&self, out: &mut Out) {
-        for i in 0..self.arg0.len() {
-            out.write_scalar(
-                Op::apply_scalar(
-                    self.arg0.get_scalar(i),
-                    self.arg1.get_scalar(i),
-                ),
-                i,
-            );
-        }
-    }
-}
-
-impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
-    for function_2::Function2OwnRef<'a, HostBackend, Op, Lhs, Rhs>
-where
-    Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
-    Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
-    Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
-    Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
-{
-    fn apply(&self, out: &mut Out) {
-        for i in 0..self.arg0.len() {
-            out.write_scalar(
-                Op::apply_scalar(
-                    self.arg0.get_scalar(i),
-                    self.arg1.get_scalar(i),
-                ),
-                i,
-            );
-        }
-    }
-}
+// impl<'a, Op, Lhs, Rhs> traits::ScalarAccessor
+//     for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
+// where
+//     Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
+//     Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
+//     Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+// {
+//     #[inline(always)]
+//     fn get_scalar(&self, index: usize) -> Self::Scalar {
+//         Op::apply_scalar(
+//             self.arg0.get_scalar(index),
+//             self.arg1.get_scalar(index),
+//         )
+//     }
+//
+//     fn write_scalar(&mut self, _value: Self::Scalar, _index: usize) {
+//         panic!("Cannot write to a Function2RefRef");
+//     }
+// }
+//
+// impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
+//     for function_2::Function2RefRef<'a, HostBackend, Op, Lhs, Rhs>
+// where
+//     Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
+//     Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
+//     Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+//     Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+// {
+//     fn apply(&self, out: &mut Out) {
+//         for i in 0..self.arg0.len() {
+//             out.write_scalar(
+//                 Op::apply_scalar(
+//                     self.arg0.get_scalar(i),
+//                     self.arg1.get_scalar(i),
+//                 ),
+//                 i,
+//             );
+//         }
+//     }
+// }
+//
+// impl<'a, Op, Lhs, Rhs, Out> function_2::Function2<Out>
+//     for function_2::Function2OwnRef<'a, HostBackend, Op, Lhs, Rhs>
+// where
+//     Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
+//     Lhs: traits::LazyArrayObject + traits::ScalarAccessor,
+//     Rhs: traits::LazyArrayObject + traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+//     Out: traits::ScalarAccessor<Scalar = Lhs::Scalar>,
+// {
+//     fn apply(&self, out: &mut Out) {
+//         for i in 0..self.arg0.len() {
+//             out.write_scalar(
+//                 Op::apply_scalar(
+//                     self.arg0.get_scalar(i),
+//                     self.arg1.get_scalar(i),
+//                 ),
+//                 i,
+//             );
+//         }
+//     }
+// }
 
 /*pub struct HostApplicator2<Op, Lhs, Rhs, Out> {
     phantom_op: PhantomData<(Op, Lhs, Rhs, Out)>,

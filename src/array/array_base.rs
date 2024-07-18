@@ -135,26 +135,27 @@ where
 {
     type Buffer = StorageType::Buffer;
 
-    // unsafe fn get_buffer(&self) -> (Self::Buffer, usize) {
-    //     (self.storage.get_raw(), self.storage.len())
-    // }
-    //
-    // unsafe fn get_buffer_checked(&self, len: usize) -> Option<Self::Buffer> {
-    //     if self.storage.len() >= len {
-    //         Some(self.storage.get_raw())
-    //     } else {
-    //         None
-    //     }
-    // }
-    //
-    // unsafe fn set_buffer_no_free(&mut self) {
-    //     self.storage.set_no_free();
-    // }
-
     unsafe fn get_buffer_and_set_no_free(
         &mut self,
         len: usize,
     ) -> Option<Self::Buffer> {
         self.storage.get_buffer_and_set_no_free(len)
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> GetWriteableBuffer
+    for &'a ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage + GetWriteableBuffer,
+    NDims: Dimension,
+{
+    type Buffer = StorageType::Buffer;
+
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        len: usize,
+    ) -> Option<Self::Buffer> {
+        None
     }
 }
