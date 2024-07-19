@@ -50,25 +50,32 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+    #[inline(always)]
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self.storage[index]
     }
 
+    #[inline(always)]
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         self.storage[index] = value;
     }
 }
 
+// TODO: Make this two separate traits
 impl<'a, StorageType, NDims> traits::ScalarAccessor
     for &'a ArrayBase<HostBackend, StorageType, NDims>
 where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+    #[inline(always)]
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self.storage[index]
     }
 
+    #[cold]
+    #[inline(never)]
+    #[track_caller]
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         panic!("Cannot write to a &ArrayBase");
     }
@@ -145,10 +152,12 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+    #[inline(always)]
     fn get_storage(&self) -> &Self::Storage {
         &self.storage
     }
 
+    #[inline(always)]
     fn get_storage_mut(&mut self) -> &mut Self::Storage {
         &mut self.storage
     }
@@ -161,10 +170,14 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+    #[inline(always)]
     fn get_storage(&self) -> &Self::Storage {
         &self.storage
     }
 
+    #[cold]
+    #[inline(never)]
+    #[track_caller]
     fn get_storage_mut(&mut self) -> &mut Self::Storage {
         panic!("Cannot write to a &ArrayBase");
     }
@@ -198,6 +211,7 @@ where
 {
     type Buffer = StorageType::Buffer;
 
+    #[inline(always)]
     unsafe fn get_buffer_and_set_no_free(
         &mut self,
         len: usize,
@@ -215,6 +229,7 @@ where
 {
     type Buffer = StorageType::Buffer;
 
+    #[inline(always)]
     unsafe fn get_buffer_and_set_no_free(
         &mut self,
         len: usize,
