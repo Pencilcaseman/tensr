@@ -59,8 +59,35 @@ where
     }
 }
 
+impl<'a, StorageType, NDims> traits::ScalarAccessor
+    for &'a ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self.storage[index]
+    }
+
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        panic!("Cannot write to a &ArrayBase");
+    }
+}
+
 impl<Backend, StorageType, NDims> traits::ContainerLength
     for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn len(&self) -> usize {
+        self.storage.len()
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerLength
+    for &'a ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -81,8 +108,28 @@ where
     type Scalar = StorageType::Scalar;
 }
 
+impl<'a, Backend, StorageType, NDims> traits::ContainerScalarType
+    for &'a ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Scalar = StorageType::Scalar;
+}
+
 impl<Backend, StorageType, NDims> traits::ContainerStorageType
     for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Storage = StorageType;
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerStorageType
+    for &'a ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -104,6 +151,22 @@ where
 
     fn get_storage_mut(&mut self) -> &mut Self::Storage {
         &mut self.storage
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerStorageAccessor
+    for &'a ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn get_storage(&self) -> &Self::Storage {
+        &self.storage
+    }
+
+    fn get_storage_mut(&mut self) -> &mut Self::Storage {
+        panic!("Cannot write to a &ArrayBase");
     }
 }
 
