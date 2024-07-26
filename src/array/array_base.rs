@@ -4,6 +4,8 @@ use crate::{
     dimension::{axes::Axes, dim::Dimension},
 };
 
+/// The base type for all arrays. This type should not be used directly -- it is
+/// used through various type aliases to make the API more ergonomic.
 pub struct ArrayBase<
     Backend: traits::Backend,
     StorageType: traits::Storage,
