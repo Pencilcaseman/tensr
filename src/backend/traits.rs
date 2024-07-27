@@ -20,22 +20,39 @@ pub trait Backend {
     type AddKernel: op_traits::BinaryOp;
 }
 
+/// This trait marks an object as being a container with a length, and
+/// provides a method for accessing the length.
 pub trait ContainerLength {
+    /// Returns the length of the container
     fn len(&self) -> usize;
 
+    /// Returns true if the container is empty. This is equivalent to
+    /// `self.len() == 0`.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
+/// This trait provides access to the scalar type of the container. For
+/// example, a [`Vec<u32>`] has a scalar type of `u32`.
+///
+/// ## Note
+/// Note that this trait may not be implemented for standard library
+/// containers
 pub trait ContainerScalarType {
+    /// The scalar type of the container
     type Scalar: Copy;
 }
 
+/// This trait marks an object as having a storage type. For example,
+/// an [`ArrayBase`] may have a storage type of [`HostStorage`], which
+/// stores data on the host.
 pub trait ContainerStorageType: ContainerLength + ContainerScalarType {
+    /// The storage type of the container
     type Storage: Storage;
 }
 
+/// This trait allows access to the storage type of the container.
 pub trait ContainerStorageAccessor: ContainerStorageType {
     /// Return a reference to the underlying storage
     fn get_storage(&self) -> &Self::Storage;
@@ -44,6 +61,8 @@ pub trait ContainerStorageAccessor: ContainerStorageType {
     fn get_storage_mut(&mut self) -> &mut Self::Storage;
 }
 
+/// Marks a struct as depending on a given backend. Generally, only structs
+/// with the same backend can be used together.
 pub trait ContainerBackendType: ContainerStorageType {
     type Backend: Backend;
 }

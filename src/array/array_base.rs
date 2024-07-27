@@ -22,6 +22,7 @@ where
     StorageType: traits::Storage,
     NDims: Dimension,
 {
+    /// Create a new [`ArrayBase`] object with the given axes and storage.
     pub const fn new(axes: Axes<NDims>, storage: StorageType) -> Self
     where
         StorageType: traits::OwnedStorage,
@@ -29,18 +30,41 @@ where
         Self { axes, storage, phantom_backend: std::marker::PhantomData }
     }
 
-    pub fn new_empty(shape: NDims) -> Self
+    /// Create a new [`ArrayBase`] object with allocated, but uninitialized
+    /// storage.
+    ///
+    /// # Safety
+    /// The values in the Array are not initialized, so will almost certainly
+    /// contain garbage data. Every element in the array should be written to
+    /// before being read from.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// // TODO: Refactor some of this into a single prelude
+    /// use tensr::array::array_base::ArrayBase;
+    /// use tensr::dimension::dim::Dim2;
+    /// use tensr::backend::host::host_storage::HostStorage;
+    /// use tensr::backend::host::host_backend::HostBackend;
+    /// use crate::tensr::backend::traits::ContainerLength;
+    ///
+    /// let mut array = unsafe { ArrayBase::<HostBackend, HostStorage<i32>, Dim2>::new_empty(Dim2::new([3, 4])) };
+    /// assert_eq!(array.len(), 12);
+    /// ```
+    pub unsafe fn new_empty(shape: NDims) -> Self
     where
         StorageType: traits::OwnedStorage,
     {
-        let storage = unsafe { StorageType::new_from_shape_uninit(&shape) };
+        let storage = StorageType::new_from_shape_uninit(&shape);
         Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
     }
 
+    /// Get the dimensions of the array
     pub const fn shape(&self) -> &NDims {
         &self.axes.shape
     }
 
+    /// Get the strides of the array
     pub const fn strides(&self) -> &NDims {
         &self.axes.stride
     }
@@ -78,7 +102,7 @@ where
     #[cold]
     #[inline(never)]
     #[track_caller]
-    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+    fn write_scalar(&mut self, _: Self::Scalar, _: usize) {
         panic!("Cannot write to a &ArrayBase");
     }
 }
@@ -218,6 +242,7 @@ where
         &mut self,
         len: usize,
     ) -> Option<Self::Buffer> {
+        // If we own the storage, we can do whatever we want (within reason)
         self.storage.get_buffer_and_set_no_free(len)
     }
 }
@@ -234,8 +259,10 @@ where
     #[inline(always)]
     unsafe fn get_buffer_and_set_no_free(
         &mut self,
-        len: usize,
+        _: usize,
     ) -> Option<Self::Buffer> {
+        // It is not safe to get a buffer from a &ArrayBase, as it could be used
+        // somewhere else
         None
     }
 }

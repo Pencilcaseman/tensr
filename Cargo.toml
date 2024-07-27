@@ -25,6 +25,10 @@ debug = false
 debug-assertions = false
 
 [lints.clippy]
+
+# Allow #[inline(always)] -- I have made the bold assumption that I know what I am doing
+inline_always = { level = "allow", priority = 1 }
+
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 # missing_docs = { level = "warn", priority = -2 }
