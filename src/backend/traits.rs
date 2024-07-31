@@ -112,22 +112,17 @@ pub trait OwnedStorage: Storage {
     unsafe fn get_raw(&self) -> Self::Raw;
 }
 
-/// Allows access to (an evaluated) scalar result at a given index.
+/// Allows direct access to scalar values in a container.
 pub trait ScalarAccessor: ContainerLength + ContainerScalarType {
     /// Return the `index`'th element of a data container or wrapper
     fn get_scalar(&self, index: usize) -> Self::Scalar;
+}
 
+/// Allows writing scalar values to a container.
+pub trait ScalarWriter: ContainerLength + ContainerScalarType {
     /// Write a value to the `index`'th element of a data container or wrapper
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
-
-// pub trait RawAccessor: ContainerStorageType {
-//     /// Return a reference to the underlying storage
-//     unsafe fn get_raw(&self) -> &Self::Storage;
-//
-//     /// Return a mutable reference to the underlying storage
-//     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage;
-// }
 
 pub(crate) trait LazyArrayObject:
     ContainerStorageType + ContainerBackendType

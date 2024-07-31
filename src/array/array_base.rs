@@ -80,14 +80,21 @@ where
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self.storage[index]
     }
+}
 
+impl<StorageType, NDims> traits::ScalarWriter
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
     #[inline(always)]
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         self.storage[index] = value;
     }
 }
 
-// TODO: Make this two separate traits
+// TODO: Implement all traits for &'a mut
 impl<'a, StorageType, NDims> traits::ScalarAccessor
     for &'a ArrayBase<HostBackend, StorageType, NDims>
 where
@@ -97,13 +104,6 @@ where
     #[inline(always)]
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self.storage[index]
-    }
-
-    #[cold]
-    #[inline(never)]
-    #[track_caller]
-    fn write_scalar(&mut self, _: Self::Scalar, _: usize) {
-        panic!("Cannot write to a &ArrayBase");
     }
 }
 

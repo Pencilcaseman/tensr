@@ -6,6 +6,7 @@ use crate::backend::host::host_kernels;
 use crate::backend::traits::Backend;
 use crate::backend::traits::ContainerScalarType;
 use crate::backend::traits::ScalarAccessor;
+use crate::backend::traits::ScalarWriter;
 use crate::backend::types::TensrType;
 use crate::{
     array::array_base::ArrayBase, backend::op_traits, backend::traits,
@@ -24,13 +25,6 @@ where
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         Op::apply_scalar(self.lhs.get_scalar(index), self.rhs.get_scalar(index))
     }
-
-    #[cold]
-    #[inline(never)]
-    #[track_caller]
-    fn write_scalar(&mut self, _value: Self::Scalar, _index: usize) {
-        panic!("Cannot write to a TensrFn2");
-    }
 }
 
 impl<'a, Op, Lhs, Rhs, Out> Function2<Out>
@@ -39,7 +33,7 @@ where
     Op: host_kernels::HostBinaryOp<Lhs::Scalar>,
     Lhs: ScalarAccessor,
     Rhs: ScalarAccessor<Scalar = Lhs::Scalar>,
-    Out: ScalarAccessor<Scalar = Lhs::Scalar>,
+    Out: ScalarAccessor<Scalar = Lhs::Scalar> + ScalarWriter,
 {
     fn apply(&self, out: &mut Out) {
         for i in 0..self.lhs.len() {

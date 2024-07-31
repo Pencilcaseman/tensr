@@ -1,5 +1,7 @@
 use crate::array::array_traits::GetWriteableBuffer;
-use crate::backend::traits::{ContainerScalarType, ContainerStorageType};
+use crate::backend::traits::{
+    ContainerScalarType, ContainerStorageType, ScalarWriter,
+};
 use crate::backend::{
     host::host_backend::HostBackend,
     traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
@@ -252,24 +254,16 @@ where
     fn get_scalar(&self, index: usize) -> Self::Scalar {
         self[index]
     }
+}
 
+impl<T> ScalarWriter for HostStorage<T>
+where
+    T: Copy,
+{
     fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
         self[index] = value;
     }
 }
-
-// impl<T> RawAccessor for HostStorage<T>
-// where
-//     T: Copy,
-// {
-//     unsafe fn get_raw(&self) -> &Self::Storage {
-//         self
-//     }
-//
-//     unsafe fn get_raw_mut(&mut self) -> &mut Self::Storage {
-//         self
-//     }
-// }
 
 impl<T> Drop for HostStorage<T> {
     fn drop(&mut self) {
