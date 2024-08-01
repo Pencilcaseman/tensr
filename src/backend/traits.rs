@@ -6,6 +6,14 @@ use crate::backend::op_traits;
 use crate::backend::op_traits::BinaryOp;
 use crate::dimension::dim::Dimension;
 
+macro_rules! kernel_type_repeater {
+    ($name: ident, $_1: tt, $_2: tt) => {
+        paste::paste! {
+            type [< $name Kernel >]: op_traits::BinaryOp;
+        }
+    };
+}
+
 /// The [`Backend`] trait is used to mark structs as a valid backend for
 /// calculations. Operators should be implemented for a given backend, and
 /// must operate on (valid) data provided by the [`Backend::OwnedStorage`]
@@ -17,7 +25,7 @@ pub trait Backend {
     where
         T: Copy;
 
-    type AddKernel: op_traits::BinaryOp;
+    crate::repeat_binary_ops!(kernel_type_repeater);
 }
 
 /// This trait marks an object as being a container with a length, and
@@ -56,7 +64,12 @@ pub trait ContainerStorageType: ContainerLength + ContainerScalarType {
 pub trait ContainerStorageAccessor: ContainerStorageType {
     /// Return a reference to the underlying storage
     fn get_storage(&self) -> &Self::Storage;
+}
 
+/// This trait allows mutable access to the storage type of the container.
+pub trait MutableContainerStorageAccessor:
+    ContainerStorageType + ContainerStorageAccessor
+{
     /// Return a mutable reference to the underlying storage
     fn get_storage_mut(&mut self) -> &mut Self::Storage;
 }

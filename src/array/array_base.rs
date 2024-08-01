@@ -70,43 +70,6 @@ where
     }
 }
 
-impl<StorageType, NDims> traits::ScalarAccessor
-    for ArrayBase<HostBackend, StorageType, NDims>
-where
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-    #[inline(always)]
-    fn get_scalar(&self, index: usize) -> Self::Scalar {
-        self.storage[index]
-    }
-}
-
-impl<StorageType, NDims> traits::ScalarWriter
-    for ArrayBase<HostBackend, StorageType, NDims>
-where
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-    #[inline(always)]
-    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
-        self.storage[index] = value;
-    }
-}
-
-// TODO: Implement all traits for &'a mut
-impl<'a, StorageType, NDims> traits::ScalarAccessor
-    for &'a ArrayBase<HostBackend, StorageType, NDims>
-where
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-    #[inline(always)]
-    fn get_scalar(&self, index: usize) -> Self::Scalar {
-        self.storage[index]
-    }
-}
-
 impl<Backend, StorageType, NDims> traits::ContainerLength
     for ArrayBase<Backend, StorageType, NDims>
 where
@@ -121,6 +84,18 @@ where
 
 impl<'a, Backend, StorageType, NDims> traits::ContainerLength
     for &'a ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    fn len(&self) -> usize {
+        self.storage.len()
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerLength
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -151,6 +126,16 @@ where
     type Scalar = StorageType::Scalar;
 }
 
+impl<'a, Backend, StorageType, NDims> traits::ContainerScalarType
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Scalar = StorageType::Scalar;
+}
+
 impl<Backend, StorageType, NDims> traits::ContainerStorageType
     for ArrayBase<Backend, StorageType, NDims>
 where
@@ -171,6 +156,16 @@ where
     type Storage = StorageType;
 }
 
+impl<'a, Backend, StorageType, NDims> traits::ContainerStorageType
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Storage = StorageType;
+}
+
 impl<Backend, StorageType, NDims> traits::ContainerStorageAccessor
     for ArrayBase<Backend, StorageType, NDims>
 where
@@ -182,7 +177,15 @@ where
     fn get_storage(&self) -> &Self::Storage {
         &self.storage
     }
+}
 
+impl<Backend, StorageType, NDims> traits::MutableContainerStorageAccessor
+    for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
     #[inline(always)]
     fn get_storage_mut(&mut self) -> &mut Self::Storage {
         &mut self.storage
@@ -200,17 +203,56 @@ where
     fn get_storage(&self) -> &Self::Storage {
         &self.storage
     }
+}
 
-    #[cold]
-    #[inline(never)]
-    #[track_caller]
+impl<'a, Backend, StorageType, NDims> traits::ContainerStorageAccessor
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn get_storage(&self) -> &Self::Storage {
+        &self.storage
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> traits::MutableContainerStorageAccessor
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
     fn get_storage_mut(&mut self) -> &mut Self::Storage {
-        panic!("Cannot write to a &ArrayBase");
+        &mut self.storage
     }
 }
 
 impl<Backend, StorageType, NDims> traits::ContainerBackendType
     for ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Backend = Backend;
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerBackendType
+    for &'a ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    type Backend = Backend;
+}
+
+impl<'a, Backend, StorageType, NDims> traits::ContainerBackendType
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -264,5 +306,83 @@ where
         // It is not safe to get a buffer from a &ArrayBase, as it could be used
         // somewhere else
         None
+    }
+}
+
+impl<'a, Backend, StorageType, NDims> GetWriteableBuffer
+    for &'a mut ArrayBase<Backend, StorageType, NDims>
+where
+    Backend: traits::Backend,
+    StorageType: traits::Storage + GetWriteableBuffer,
+    NDims: Dimension,
+{
+    type Buffer = StorageType::Buffer;
+
+    #[inline(always)]
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        _: usize,
+    ) -> Option<Self::Buffer> {
+        self.storage.get_buffer_and_set_no_free(self.storage.len())
+    }
+}
+
+impl<StorageType, NDims> traits::ScalarAccessor
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self.storage[index]
+    }
+}
+
+impl<StorageType, NDims> traits::ScalarWriter
+    for ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        self.storage[index] = value;
+    }
+}
+
+impl<'a, StorageType, NDims> traits::ScalarAccessor
+    for &'a ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self.storage[index]
+    }
+}
+
+impl<'a, StorageType, NDims> traits::ScalarAccessor
+    for &'a mut ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn get_scalar(&self, index: usize) -> Self::Scalar {
+        self.storage[index]
+    }
+}
+
+impl<'a, StorageType, NDims> traits::ScalarWriter
+    for &'a mut ArrayBase<HostBackend, StorageType, NDims>
+where
+    StorageType: traits::Storage,
+    NDims: Dimension,
+{
+    #[inline(always)]
+    fn write_scalar(&mut self, value: Self::Scalar, index: usize) {
+        self.storage[index] = value;
     }
 }
