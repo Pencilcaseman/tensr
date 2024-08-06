@@ -1,18 +1,9 @@
-use crate::array::array_traits::GetWriteableBuffer;
 use crate::array::function_2::Function2;
 use crate::array::function_2::TensrFn2;
 use crate::backend::host::host_backend::HostBackend;
 use crate::backend::host::host_kernels;
-use crate::backend::traits::Backend;
-use crate::backend::traits::ContainerScalarType;
 use crate::backend::traits::ScalarAccessor;
 use crate::backend::traits::ScalarWriter;
-use crate::backend::types::TensrType;
-use crate::{
-    array::array_base::ArrayBase, backend::op_traits, backend::traits,
-    dimension::dim::Dimension,
-};
-use std::borrow::Borrow;
 
 impl<'a, Op, Lhs, Rhs> ScalarAccessor
     for TensrFn2<'a, HostBackend, Op, Lhs, Rhs>

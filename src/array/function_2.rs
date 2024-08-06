@@ -3,9 +3,7 @@ use crate::backend::op_traits;
 use crate::backend::traits;
 use crate::backend::traits::ContainerLength;
 use crate::backend::traits::ContainerScalarType;
-use crate::backend::traits::LazyArrayObject;
 use std::marker::PhantomData;
-use tensr_proc_macros::generate_function_type;
 
 pub trait Function2<Out> {
     fn apply(&self, out: &mut Out);

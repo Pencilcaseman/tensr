@@ -1,5 +1,5 @@
 use crate::dimension::dim::Dimension;
-use crate::types::{DimLen, UDim};
+use crate::types::DimLen;
 
 pub struct Axes<Dim: Dimension> {
     pub(crate) shape: Dim,
@@ -13,7 +13,7 @@ impl<Dim: Dimension> Axes<Dim> {
     {
         let mut stride = Dim::zero();
 
-        let mut l = shape.ndim();
+        let l = shape.ndim();
         let mut s = Dim::IndexScalar::from(1u16);
         for i in 0..l {
             let j = l - i - 1;

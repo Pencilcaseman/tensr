@@ -261,14 +261,14 @@ where
     type Backend = Backend;
 }
 
-impl<Backend, StorageType, NDims> traits::LazyArrayObject
-    for ArrayBase<Backend, StorageType, NDims>
-where
-    Backend: traits::Backend,
-    StorageType: traits::Storage,
-    NDims: Dimension,
-{
-}
+// impl<Backend, StorageType, NDims> traits::LazyArrayObject
+//     for ArrayBase<Backend, StorageType, NDims>
+// where
+//     Backend: traits::Backend,
+//     StorageType: traits::Storage,
+//     NDims: Dimension,
+// {
+// }
 
 impl<Backend, StorageType, NDims> GetWriteableBuffer
     for ArrayBase<Backend, StorageType, NDims>

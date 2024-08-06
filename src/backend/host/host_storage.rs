@@ -1,10 +1,9 @@
 use crate::array::array_traits::GetWriteableBuffer;
 use crate::backend::traits::{
-    ContainerScalarType, ContainerStorageType, ScalarWriter,
+    ContainerLength, OwnedStorage, ScalarAccessor, Storage,
 };
-use crate::backend::{
-    host::host_backend::HostBackend,
-    traits::{Backend, ContainerLength, OwnedStorage, ScalarAccessor, Storage},
+use crate::backend::traits::{
+    ContainerScalarType, ContainerStorageType, ScalarWriter,
 };
 use crate::dimension::dim::Dimension;
 use rayon::prelude::*;

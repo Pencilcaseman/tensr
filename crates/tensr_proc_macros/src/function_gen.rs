@@ -43,7 +43,7 @@ pub fn function_gen(tok: TokenStream) -> TokenStream {
     let trait_types = owner_types
         .iter()
         .enumerate()
-        .map(|(i, v)| {
+        .map(|(i, _)| {
             let name = format_ident!("Arg{i}");
             quote::quote! { #name }
         })
