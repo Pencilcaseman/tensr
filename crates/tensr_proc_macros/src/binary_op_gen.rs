@@ -1,8 +1,30 @@
 use proc_macro::TokenStream;
 use quote::ToTokens;
-use syn::parse::{Parse, ParseStream};
-use syn::spanned::Spanned;
-use syn::{parse_macro_input, Expr};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+    spanned::Spanned,
+    Expr,
+};
+
+// pub trait OpType {
+//     /// Returns the name of the operator (e.g. "Add")
+//     fn name(&self) -> String;
+//
+//     /// Returns a token stream representing the operation to perform.
+//     ///
+//     /// For example, for the `Add` operator with arguments `["a", "b"]`,
+//     /// this would return `a + b`.
+//     ///
+//     /// With `["a", "b", "c"]`, this would return `a + b + c`. Note that this
+//     /// may return None if the operation format is not supported.
+//     fn operation(&self, arguments: &[String]) -> proc_macro2::TokenStream;
+// }
+
+static ADD: [&str; 3] = ["Add", "add", "+"];
+static SUB: [&str; 3] = ["Sub", "sub", "-"];
+static MUL: [&str; 3] = ["Mul", "mul", "*"];
+static DIV: [&str; 3] = ["Div", "div", "/"];
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RefType {
@@ -56,7 +78,16 @@ impl Parse for Argument {
     }
 }
 
-pub fn gen_binary_op(arguments: &[Argument]) -> proc_macro2::TokenStream {
+pub fn gen_binary_op(
+    op_type: &[syn::LitStr],
+    arguments: &[Argument],
+) -> proc_macro2::TokenStream {
+    let op_type_name =
+        syn::parse_str::<syn::Ident>(&op_type[0].value()).unwrap();
+    let op_name = syn::parse_str::<syn::Ident>(&op_type[1].value()).unwrap();
+    let kernel_name =
+        syn::parse_str::<syn::Ident>(&format!("{op_type_name}Kernel")).unwrap();
+
     let requires_lifetime = arguments.iter().any(|a| {
         a.ref_type == RefType::Ref || a.arg_type == ArgumentType::TensrFn2
     });
@@ -144,7 +175,7 @@ pub fn gen_binary_op(arguments: &[Argument]) -> proc_macro2::TokenStream {
 
     let result = quote::quote! {
         impl<#lifetime_generic_comma Backend, #lhs_generics, #rhs_generics>
-            std::ops::Add< #rhs_type>
+            std::ops::#op_type_name<#rhs_type>
             for  #lhs_type
         where
             Backend: traits::Backend,
@@ -154,12 +185,12 @@ pub fn gen_binary_op(arguments: &[Argument]) -> proc_macro2::TokenStream {
             type Output = TensrFn2<
                 #output_lifetime,
                 Backend,
-                Backend::AddKernel,
+                Backend::#kernel_name,
                 #lhs_type,
                 #rhs_type,
             >;
 
-            fn add(
+            fn #op_name(
                 self,
                 rhs: #rhs_type,
             ) -> Self::Output {
@@ -174,21 +205,52 @@ pub fn gen_binary_op(arguments: &[Argument]) -> proc_macro2::TokenStream {
 pub fn gen(tok: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tok as Expr);
 
+    let mut op_type = Vec::new();
     let mut arguments = Vec::new();
-    if let Expr::Array(arr) = input {
-        for elem in arr.elems.into_iter() {
-            let stream = elem.to_token_stream().into();
-            let t = parse_macro_input!(stream as Argument);
-            arguments.push(t);
-        }
-    }
 
-    // panic!("Arguments: {:?}", arguments);
+    // if let Expr::Array(arr) = input {
+    //     for elem in arr.elems.into_iter() {
+    //         let stream = elem.to_token_stream().into();
+    //         let t = parse_macro_input!(stream as Argument);
+    //         arguments.push(t);
+    //     }
+    // }
+
+    // (["Add", "add", "+"], [Operands])
+    if let Expr::Tuple(tuple) = input {
+        match &tuple.elems[0] {
+            Expr::Array(arr) => {
+                for elem in arr.elems.iter() {
+                    let stream = elem.to_token_stream().into();
+                    let t = parse_macro_input!(stream as syn::LitStr);
+                    op_type.push(t);
+                }
+            }
+            _ => {
+                panic!("Expected array of arguments");
+            }
+        }
+
+        match &tuple.elems[1] {
+            Expr::Array(arr) => {
+                for elem in arr.elems.iter() {
+                    let stream = elem.to_token_stream().into();
+                    let t = parse_macro_input!(stream as Argument);
+                    arguments.push(t);
+                }
+            }
+            _ => {
+                panic!("Expected array of op types");
+            }
+        }
+    } else {
+        panic!("Expected tuple of two elements");
+    }
 
     let result = match arguments.len() {
         0 => quote::quote! { todo!() },
         1 => quote::quote! { todo!() },
-        2 => gen_binary_op(&arguments),
+        2 => gen_binary_op(&op_type, &arguments),
         _ => quote::quote! { todo!() },
     };
     let result_file = syn::parse_file(&result.to_string());
@@ -196,9 +258,8 @@ pub fn gen(tok: TokenStream) -> TokenStream {
     if let Err(e) = result_file {
         panic!("Error: {:?}", e);
     }
-    let result = prettyplease::unparse(&result_file.unwrap());
 
-    // panic!("Result: {}", result);
+    let result = prettyplease::unparse(&result_file.unwrap());
 
     // Return the result as a TokenStream
     syn::parse_file(&result.to_string()).unwrap().to_token_stream().into()

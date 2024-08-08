@@ -1,30 +1,63 @@
 // ArrayBase + Function
-use crate::array::array_traits::GetWriteableBuffer;
-use crate::array::function_2::TensrFn2;
 use crate::{
-    array::array_base::ArrayBase, backend::op_traits, backend::traits,
+    array::{
+        array_base::ArrayBase, array_traits::GetWriteableBuffer,
+        function_2::TensrFn2,
+    },
+    backend::{op_traits, traits},
     dimension::dim::Dimension,
 };
 
-tensr_proc_macros::generate_binary_op!([(Own, ArrayBase), (Own, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Own, ArrayBase), (Ref, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Ref, ArrayBase), (Own, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Ref, ArrayBase), (Ref, ArrayBase)]);
+#[cfg_attr(rustfmt, rustfmt_skip)]
+macro_rules! repeat_for_function_types {
+//     ($OpName: ident, $op_name: ident: $_: tt) => {
 
-tensr_proc_macros::generate_binary_op!([(Own, TensrFn2), (Own, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Own, TensrFn2), (Ref, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Ref, TensrFn2), (Own, ArrayBase)]);
-tensr_proc_macros::generate_binary_op!([(Ref, TensrFn2), (Ref, ArrayBase)]);
+        () => {
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, ArrayBase)]));
 
-tensr_proc_macros::generate_binary_op!([(Own, ArrayBase), (Own, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Own, ArrayBase), (Ref, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Ref, ArrayBase), (Own, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Ref, ArrayBase), (Ref, TensrFn2)]);
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, ArrayBase)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, ArrayBase)]));
 
-tensr_proc_macros::generate_binary_op!([(Own, TensrFn2), (Own, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Own, TensrFn2), (Ref, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Ref, TensrFn2), (Own, TensrFn2)]);
-tensr_proc_macros::generate_binary_op!([(Ref, TensrFn2), (Ref, TensrFn2)]);
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, TensrFn2)]));
+
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, TensrFn2)]));
+        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, TensrFn2)]));
+    };
+}
+
+repeat_for_function_types!();
+
+// crate::repeat_binary_ops!(repeat_for_function_types);
+
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, ArrayBase)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, ArrayBase)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, TensrFn2)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, TensrFn2)]));
 
 // impl<'a, Backend, StorageTypeLhs, NDimsLhs, StorageTypeRhs, NDimsRhs>
 //     std::ops::Add<ArrayBase<Backend, StorageTypeRhs, NDimsRhs>>
