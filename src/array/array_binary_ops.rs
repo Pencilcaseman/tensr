@@ -8,34 +8,133 @@ use crate::{
     dimension::dim::Dimension,
 };
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-macro_rules! repeat_for_function_types {
-//     ($OpName: ident, $op_name: ident: $_: tt) => {
-
-        () => {
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, ArrayBase)]));
-
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, ArrayBase)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, ArrayBase)]));
-
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, TensrFn2)]));
-
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, TensrFn2)]));
-        tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, TensrFn2)]));
-    };
+macro_rules! implement_arary_binary_op {
+    ($op_type: literal, [$($array_op_types: literal),*]) => {
+        $(
+            tensr_proc_macros::generate_binary_op!(($op_type, $array_op_types));
+        )*
+    }
 }
 
-repeat_for_function_types!();
+macro_rules! implement_arary_binary_ops {
+    ([$($op_type: literal),*], [$($array_op_types: literal),*]) => {
+        $(
+            tensr_proc_macros::generate_binary_op!(([$op_type, $array_op_types]));
+        )*
+    }
+}
+
+// Array Array
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, ArrayBase), (Own, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, ArrayBase), (Ref, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, ArrayBase), (Own, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, ArrayBase), (Ref, ArrayBase)]
+));
+
+// Array TensrFn2
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, ArrayBase), (Own, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, ArrayBase), (Ref, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, ArrayBase), (Own, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, ArrayBase), (Ref, TensrFn2)]
+));
+
+// TensrFn2 Array
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, TensrFn2), (Own, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, TensrFn2), (Ref, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, TensrFn2), (Own, ArrayBase)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, TensrFn2), (Ref, ArrayBase)]
+));
+
+// TensrFn2 TensrFn2
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, TensrFn2), (Own, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Own, TensrFn2), (Ref, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, TensrFn2), (Own, TensrFn2)]
+));
+
+tensr_proc_macros::generate_binary_op!((
+    ["Add", "add"],
+    [(Ref, TensrFn2), (Ref, TensrFn2)]
+));
+
+// #[cfg_attr(rustfmt, rustfmt_skip)]
+// macro_rules! repeat_for_function_types {
+// // //     ($OpName: ident, $op_name: ident: $_: tt) => {
+// () => {
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, ArrayBase)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, ArrayBase)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, ArrayBase)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, ArrayBase), (Ref, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, ArrayBase), (Ref, TensrFn2)]));
+//
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Own, TensrFn2), (Ref, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Own, TensrFn2)]));
+// tensr_proc_macros::generate_binary_op!((["Add", "add"], [(Ref, TensrFn2), (Ref, TensrFn2)]));
+// };
+// }
+//
+// repeat_for_function_types!();
 
 // crate::repeat_binary_ops!(repeat_for_function_types);
 

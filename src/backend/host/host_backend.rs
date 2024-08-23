@@ -1,5 +1,7 @@
-use crate::backend::host::host_kernels;
-use crate::backend::{host::host_storage::HostStorage, traits::Backend};
+use crate::backend::{
+    host::{host_kernels, host_storage::HostStorage},
+    traits::Backend,
+};
 
 macro_rules! kernel_repeater {
     ($name: ident, $_1: tt, $_2: tt) => {
@@ -7,6 +9,14 @@ macro_rules! kernel_repeater {
             type [< $name Kernel >] = host_kernels::[< Host $name Kernel >];
         }
     };
+}
+
+macro_rules! repeat_kernel_repeater {
+    ($([$name: ident, $_1: tt, $_2: tt]),*) => {
+        $(
+            kernel_repeater!($name, $_1, $_2);
+        )*
+    }
 }
 
 /// The host backend for Tensr, which allows you to perform calculations on the
@@ -20,4 +30,6 @@ pub struct HostBackend;
 impl Backend for HostBackend {
     type OwnedStorage<T> = HostStorage<T> where T: Copy;
     crate::repeat_binary_ops!(kernel_repeater);
+    // repeat_kernel_repeater!(crate:array_binary_ops!());
+    // repeat_kernel_repeater!([Add, add, +]);
 }
