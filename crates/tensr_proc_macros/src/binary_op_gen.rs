@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::{
@@ -6,25 +7,6 @@ use syn::{
     spanned::Spanned,
     Expr,
 };
-
-// pub trait OpType {
-//     /// Returns the name of the operator (e.g. "Add")
-//     fn name(&self) -> String;
-//
-//     /// Returns a token stream representing the operation to perform.
-//     ///
-//     /// For example, for the `Add` operator with arguments `["a", "b"]`,
-//     /// this would return `a + b`.
-//     ///
-//     /// With `["a", "b", "c"]`, this would return `a + b + c`. Note that this
-//     /// may return None if the operation format is not supported.
-//     fn operation(&self, arguments: &[String]) -> proc_macro2::TokenStream;
-// }
-
-static ADD: [&str; 3] = ["Add", "add", "+"];
-static SUB: [&str; 3] = ["Sub", "sub", "-"];
-static MUL: [&str; 3] = ["Mul", "mul", "*"];
-static DIV: [&str; 3] = ["Div", "div", "/"];
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RefType {
@@ -74,6 +56,24 @@ impl Parse for Argument {
             Ok(Argument { ref_type, arg_type })
         } else {
             Err(syn::Error::new(input.span(), "Expected tuple of two elements"))
+        }
+    }
+}
+
+impl ToTokens for RefType {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        *tokens = match self {
+            RefType::Own => quote::quote! { Own },
+            RefType::Ref => quote::quote! { Ref },
+        }
+    }
+}
+
+impl ToTokens for ArgumentType {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        *tokens = match self {
+            ArgumentType::ArrayBase => quote::quote! { ArrayBase },
+            ArgumentType::TensrFn2 => quote::quote! { TensrFn2 },
         }
     }
 }
@@ -202,6 +202,62 @@ pub fn gen_binary_op(
     result
 }
 
+pub fn gen_type_pairs(
+    types: [ArgumentType; 2],
+) -> Vec<((RefType, ArgumentType), (RefType, ArgumentType))> {
+    // f(["A", "B"]) => [
+    //      [(Own, "A"), (Own, "A")],
+    //      [(Own, "A"), (Ref, "A")],
+    //      [(Ref, "A"), (Own, "A")],
+    //      [(Ref, "A"), (Ref, "A")],
+    //
+    //      [(Own, "A"), (Own, "B")],
+    //      [(Own, "A"), (Ref, "B")],
+    //      [(Ref, "A"), (Own, "B")],
+    //      [(Ref, "A"), (Ref, "B")],
+    //
+    //      [(Own, "B"), (Own, "A")],
+    //      [(Own, "B"), (Ref, "A")],
+    //      [(Ref, "B"), (Own, "A")],
+    //      [(Ref, "B"), (Ref, "A")],
+    //
+    //      [(Own, "B"), (Own, "B")],
+    //      [(Own, "B"), (Ref, "B")],
+    //      [(Ref, "B"), (Own, "B")],
+    //      [(Ref, "B"), (Ref, "B")],
+    // ]
+
+    let new_types: Vec<_> = types
+        .iter()
+        .flat_map(|t| {
+            // Need N copies of each type
+
+            // let mut tmp = Vec::new();
+            //
+            // for _ in 0..N {
+            //     tmp.push((RefType::Own, *t));
+            // }
+            //
+            // for _ in 0..N {
+            //     tmp.push((RefType::Ref, *t));
+            // }
+            //
+            // tmp.into_iter()
+
+            [(RefType::Own, *t), (RefType::Ref, *t)]
+        })
+        .collect();
+
+    // Generate all permutations of new_types
+    // new_types.into_iter().permutations(N).collect()
+
+    new_types
+        .clone()
+        .into_iter()
+        .cartesian_product(new_types.into_iter())
+        .collect()
+}
+
 pub fn gen(tok: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tok as Expr);
 
@@ -263,4 +319,88 @@ pub fn gen(tok: TokenStream) -> TokenStream {
 
     // Return the result as a TokenStream
     syn::parse_file(&result.to_string()).unwrap().to_token_stream().into()
+}
+
+pub fn gen_all(tok: TokenStream) -> TokenStream {
+    // input = ("Add", "add")
+    let input = parse_macro_input!(tok as Expr);
+
+    // Parse input stream
+    let (name_cap, name_lower) = if let Expr::Tuple(tuple) = input {
+        let first = if let Expr::Lit(lit) = &tuple.elems[0] {
+            lit
+        } else {
+            panic!("Expected literal");
+        };
+
+        let second = if let Expr::Lit(lit) = &tuple.elems[1] {
+            lit
+        } else {
+            panic!("Expected literal");
+        };
+
+        (first.to_owned(), second.to_owned())
+    } else {
+        panic!("Expected tuple of two elements");
+    };
+
+    let perms =
+        gen_type_pairs([ArgumentType::ArrayBase, ArgumentType::TensrFn2]);
+
+    // panic!("{perms:?} | {}", perms.len());
+
+    let mut result = String::new();
+
+    for ((lhs_ref, lhs_type), (rhs_ref, rhs_type)) in perms {
+        // let expr = quote::quote! {
+        //     tensr_proc_macros::generate_binary_op!((
+        //         [#name_cap, #name_lower],
+        //         [
+        //             (
+        //                 #lhs_ref,
+        //                 #lhs_type
+        //             ),
+        //             (
+        //                 #rhs_ref,
+        //                 #rhs_type
+        //             )
+        //         ]
+        //     ));
+        // };
+
+        let expr = format!(
+            r#"
+            tensr_proc_macros::generate_binary_op!((
+                [{}, {}],
+                [
+                    (
+                        {lhs_ref:?},
+                        {lhs_type:?}
+                    ),
+                    (
+                        {rhs_ref:?},
+                        {rhs_type:?}
+                    )
+                ]
+            ));
+        "#,
+            name_cap.to_token_stream().to_string(),
+            name_lower.to_token_stream().to_string(),
+        );
+        result.push_str(&format!("{expr}\n"));
+    }
+
+    // panic!("{result}");
+
+    // let result = syn::parse_str(&result).unwrap();
+
+    // Pretty print the output
+    let result = syn::parse_file(&result).unwrap();
+    let result = prettyplease::unparse(&result);
+    let parsed = syn::parse_file(&result).unwrap();
+
+    // panic!("{result}");
+
+    // Return the result as a TokenStream
+    parsed.to_token_stream().into()
 }
