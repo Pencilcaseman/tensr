@@ -3,6 +3,8 @@ macro_rules! repeat_binary_ops {
     ($macro: tt) => {
         $macro!(Add, add, +);
         $macro!(Sub, sub, -);
+        $macro!(Mul, mul, *);
+        $macro!(Div, div, /);
     };
 }
 

@@ -25,9 +25,9 @@ use crate::{
 // }
 
 tensr_proc_macros::generate_all_binary_ops!(("Add", "add"));
-// tensr_proc_macros::generate_all_binary_ops!(("Sub", "sub"));
-// tensr_proc_macros::generate_all_binary_ops!(("Mul", "mul"));
-// tensr_proc_macros::generate_all_binary_ops!(("Div", "div"));
+tensr_proc_macros::generate_all_binary_ops!(("Sub", "sub"));
+tensr_proc_macros::generate_all_binary_ops!(("Mul", "mul"));
+tensr_proc_macros::generate_all_binary_ops!(("Div", "div"));
 
 // // Array Array
 // tensr_proc_macros::generate_binary_op!((
