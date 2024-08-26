@@ -1,9 +1,10 @@
-use crate::array::function_2::Function2;
-use crate::array::function_2::TensrFn2;
-use crate::backend::host::host_backend::HostBackend;
-use crate::backend::host::host_kernels;
-use crate::backend::traits::ScalarAccessor;
-use crate::backend::traits::ScalarWriter;
+use crate::{
+    array::function_2::{Function2, TensrFn2},
+    backend::{
+        host::{host_backend::HostBackend, host_kernels},
+        traits::{ScalarAccessor, ScalarWriter},
+    },
+};
 
 impl<'a, Op, Lhs, Rhs> ScalarAccessor
     for TensrFn2<'a, HostBackend, Op, Lhs, Rhs>

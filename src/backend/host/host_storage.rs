@@ -1,13 +1,15 @@
-use crate::array::array_traits::GetWriteableBuffer;
-use crate::backend::traits::{
-    ContainerLength, OwnedStorage, ScalarAccessor, Storage,
-};
-use crate::backend::traits::{
-    ContainerScalarType, ContainerStorageType, ScalarWriter,
-};
-use crate::dimension::dim::Dimension;
-use rayon::prelude::*;
 use std::ptr::NonNull;
+
+use rayon::prelude::*;
+
+use crate::{
+    array::array_traits::GetWriteableBuffer,
+    backend::traits::{
+        ContainerLength, ContainerScalarType, ContainerStorageType,
+        OwnedStorage, ScalarAccessor, ScalarWriter, Storage,
+    },
+    dimension::dim::Dimension,
+};
 
 /// The number of bytes to align heap-allocated memory to. The largest
 /// alignment (64 bytes) is required by AVX-512, so we use this by default.
@@ -286,6 +288,7 @@ impl<T> std::ops::Index<usize> for HostStorage<T> {
             panic!("index (is {index}) must be <= len (is {len})");
         }
 
+        #[cfg(debug_assertions)]
         if index >= self.length {
             assert_failed(index, self.length)
         }
@@ -303,6 +306,7 @@ impl<T> std::ops::IndexMut<usize> for HostStorage<T> {
             panic!("index (is {index}) must be <= len (is {len})");
         }
 
+        #[cfg(debug_assertions)]
         if index >= self.length {
             assert_failed(index, self.length)
         }
@@ -417,8 +421,9 @@ impl<T> GetWriteableBuffer for HostStorage<T> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::hint::black_box;
+
+    use super::*;
 
     macro_rules! test_all {
         ($macro_name:ident, $($type:ty),+) => {

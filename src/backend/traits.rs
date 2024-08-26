@@ -1,8 +1,7 @@
 //! Traits and types for defining and implementing backends for arrays. This
 //! includes Backend structs and storage types.
 
-use crate::backend::op_traits;
-use crate::dimension::dim::Dimension;
+use crate::{backend::op_traits, dimension::dim::Dimension};
 
 macro_rules! kernel_type_repeater {
     ($name: ident, $_1: tt, $_2: tt) => {
@@ -134,8 +133,3 @@ pub trait ScalarWriter: ContainerLength + ContainerScalarType {
     /// Write a value to the `index`'th element of a data container or wrapper
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }
-
-// pub(crate) trait LazyArrayObject:
-//     ContainerStorageType + ContainerBackendType
-// {
-// }
