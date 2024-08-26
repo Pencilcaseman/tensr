@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, ToTokens};
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Expr};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, Expr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Ownership {

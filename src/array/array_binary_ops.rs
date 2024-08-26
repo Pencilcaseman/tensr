@@ -24,17 +24,17 @@ use crate::{
 //     }
 // }
 
-tensr_proc_macros::generate_all_binary_ops!(("Add", "add"));
-tensr_proc_macros::generate_all_binary_ops!(("Sub", "sub"));
-tensr_proc_macros::generate_all_binary_ops!(("Mul", "mul"));
-tensr_proc_macros::generate_all_binary_ops!(("Div", "div"));
+tensr_proc_macros::generate_all_binary_ops!(Add);
+tensr_proc_macros::generate_all_binary_ops!(Sub);
+tensr_proc_macros::generate_all_binary_ops!(Mul);
+tensr_proc_macros::generate_all_binary_ops!(Div);
 
-// // Array Array
+// Array Array
 // tensr_proc_macros::generate_binary_op!((
-//     ["Add", "add"],
+//     Add,
 //     [(Own, ArrayBase), (Own, ArrayBase)]
 // ));
-//
+
 // tensr_proc_macros::generate_binary_op!((
 //     ["Add", "add"],
 //     [(Own, ArrayBase), (Ref, ArrayBase)]

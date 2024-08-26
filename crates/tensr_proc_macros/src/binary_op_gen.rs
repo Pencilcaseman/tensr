@@ -3,61 +3,91 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input,
-    spanned::Spanned,
-    Expr,
+    parse_macro_input, Expr,
 };
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum RefType {
-    Ref,
-    Own,
+#[track_caller]
+fn pretty_print(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    let stream = match syn::parse_str::<syn::File>(&tokens.to_string()) {
+        Ok(f) => f,
+        Err(e) => {
+            panic!("Pretty Print Error: {:?}", e);
+        }
+    };
+
+    let pretty = prettyplease::unparse(&stream);
+
+    let parsed = match syn::parse_str::<syn::File>(&pretty) {
+        Ok(f) => f,
+        Err(e) => {
+            panic!("Pretty Print Error: {:?}", e);
+        }
+    };
+
+    parsed.to_token_stream().into()
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum ArgumentType {
-    ArrayBase,
-    TensrFn2,
+pub enum BinaryOperation {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Argument {
-    pub ref_type: RefType,
-    pub arg_type: ArgumentType,
-}
-
-impl Parse for Argument {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        if let Expr::Tuple(tuple) = input.parse()? {
-            let ref_type =
-                match tuple.elems[0].to_token_stream().to_string().as_ref() {
-                    "Ref" => RefType::Ref,
-                    "Own" => RefType::Own,
-                    _ => {
-                        return Err(syn::Error::new(
-                            tuple.span(),
-                            "Invalid reference type",
-                        ))
-                    }
-                };
-
-            let arg_type =
-                match tuple.elems[1].to_token_stream().to_string().as_ref() {
-                    "ArrayBase" => ArgumentType::ArrayBase,
-                    "TensrFn2" => ArgumentType::TensrFn2,
-                    _ => {
-                        return Err(syn::Error::new(
-                            tuple.span(),
-                            "Invalid argument type",
-                        ))
-                    }
-                };
-
-            Ok(Argument { ref_type, arg_type })
-        } else {
-            Err(syn::Error::new(input.span(), "Expected tuple of two elements"))
+impl BinaryOperation {
+    pub fn type_name(&self) -> proc_macro2::TokenStream {
+        match self {
+            BinaryOperation::Add => quote::quote! { Add },
+            BinaryOperation::Sub => quote::quote! { Sub },
+            BinaryOperation::Mul => quote::quote! { Mul },
+            BinaryOperation::Div => quote::quote! { Div },
         }
     }
+
+    pub fn op_name(&self) -> proc_macro2::TokenStream {
+        match self {
+            BinaryOperation::Add => quote::quote! { add },
+            BinaryOperation::Sub => quote::quote! { sub },
+            BinaryOperation::Mul => quote::quote! { mul },
+            BinaryOperation::Div => quote::quote! { div },
+        }
+    }
+
+    pub fn kernel_name(&self) -> proc_macro2::TokenStream {
+        match self {
+            BinaryOperation::Add => quote::quote! { AddKernel },
+            BinaryOperation::Sub => quote::quote! { SubKernel },
+            BinaryOperation::Mul => quote::quote! { MulKernel },
+            BinaryOperation::Div => quote::quote! { DivKernel },
+        }
+    }
+}
+
+impl Parse for BinaryOperation {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let op = input.parse::<syn::Ident>()?;
+
+        match op.to_string().as_ref() {
+            "Add" => Ok(BinaryOperation::Add),
+            "Sub" => Ok(BinaryOperation::Sub),
+            "Mul" => Ok(BinaryOperation::Mul),
+            "Div" => Ok(BinaryOperation::Div),
+            _ => Err(syn::Error::new(op.span(), "Invalid operation")),
+        }
+    }
+}
+
+/// Enum representing the reference state of a variable.
+///
+/// An [`Own'] variable is owned by the caller.
+/// A [`Ref`] variable is borrowed from the caller.
+/// A [`RefMut`] variable is mutably borrowed from the caller.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum RefType {
+    Own,
+    Ref,
+    RefMut,
 }
 
 impl ToTokens for RefType {
@@ -65,6 +95,44 @@ impl ToTokens for RefType {
         *tokens = match self {
             RefType::Own => quote::quote! { Own },
             RefType::Ref => quote::quote! { Ref },
+            RefType::RefMut => quote::quote! { RefMut },
+        }
+    }
+}
+
+impl Parse for RefType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ref_type = input.parse::<syn::Ident>()?;
+
+        match ref_type.to_string().as_ref() {
+            "Own" => Ok(RefType::Own),
+            "Ref" => Ok(RefType::Ref),
+            "RefMut" => Ok(RefType::RefMut),
+            _ => {
+                Err(syn::Error::new(ref_type.span(), "Invalid reference type"))
+            }
+        }
+    }
+}
+
+/// Enum representing the type of argument a function takes.
+///
+/// An [`ArrayBase`] argument is a Tensr array.
+/// A [`TensrFn2`] argument is a binary Tensr function.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum ArgumentType {
+    ArrayBase,
+    TensrFn2,
+}
+
+impl Parse for ArgumentType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let arg_type = input.parse::<syn::Ident>()?;
+
+        match arg_type.to_string().as_ref() {
+            "ArrayBase" => Ok(ArgumentType::ArrayBase),
+            "TensrFn2" => Ok(ArgumentType::TensrFn2),
+            _ => Err(syn::Error::new(arg_type.span(), "Invalid argument type")),
         }
     }
 }
@@ -78,100 +146,167 @@ impl ToTokens for ArgumentType {
     }
 }
 
+/// A struct used to process macro arguments.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct Argument {
+    pub ref_type: RefType,
+    pub arg_type: ArgumentType,
+}
+
+impl Parse for Argument {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let tuple = if let Expr::Tuple(tuple) = input.parse()? {
+            tuple
+        } else {
+            return Err(syn::Error::new(
+                input.span(),
+                format!(
+                    "Expected tuple with two elements. Received {:?}",
+                    input
+                ),
+            ));
+        };
+
+        let first = tuple.elems[0].to_token_stream().into();
+        let second = tuple.elems[1].to_token_stream().into();
+
+        let ref_type: RefType = syn::parse2(first)?;
+        let arg_type: ArgumentType = syn::parse2(second)?;
+
+        Ok(Argument { ref_type, arg_type })
+    }
+}
+
 pub fn gen_binary_op(
-    op_type: &[syn::LitStr],
+    op_type: &BinaryOperation,
     arguments: &[Argument],
 ) -> proc_macro2::TokenStream {
-    let op_type_name =
-        syn::parse_str::<syn::Ident>(&op_type[0].value()).unwrap();
-    let op_name = syn::parse_str::<syn::Ident>(&op_type[1].value()).unwrap();
-    let kernel_name =
-        syn::parse_str::<syn::Ident>(&format!("{op_type_name}Kernel")).unwrap();
+    fn gen_generics(arg: &Argument, name: &str) -> proc_macro2::TokenStream {
+        match arg.arg_type {
+            ArgumentType::ArrayBase => {
+                let storage_type: syn::Type =
+                    syn::parse_str(&format!("StorageType{}", name)).unwrap();
 
+                let ndims_type: syn::Type =
+                    syn::parse_str(&format!("NDims{}", name)).unwrap();
+
+                quote::quote! { #storage_type, #ndims_type }
+            }
+            ArgumentType::TensrFn2 => {
+                let op_type: syn::Type =
+                    syn::parse_str(&format!("Op{}", name)).unwrap();
+
+                let lhs_type: syn::Type =
+                    syn::parse_str(&format!("LhsType{}", name)).unwrap();
+
+                let rhs_type: syn::Type =
+                    syn::parse_str(&format!("RhsType{}", name)).unwrap();
+
+                quote::quote! { #op_type, #lhs_type, #rhs_type }
+            }
+        }
+    }
+
+    fn gen_generic_bounds(
+        arg: &Argument,
+        name: &str,
+    ) -> proc_macro2::TokenStream {
+        match arg.arg_type {
+            ArgumentType::ArrayBase => {
+                let storage_type: syn::Type =
+                    syn::parse_str(&format!("StorageType{}", name)).unwrap();
+
+                let ndims_type: syn::Type =
+                    syn::parse_str(&format!("NDims{}", name)).unwrap();
+
+                quote::quote! {
+                    #storage_type: traits::Storage,
+                    #ndims_type: Dimension,
+                }
+            }
+            ArgumentType::TensrFn2 => {
+                let op_type: syn::Type =
+                    syn::parse_str(&format!("Op{}", name)).unwrap();
+
+                let lhs_type: syn::Type =
+                    syn::parse_str(&format!("LhsType{}", name)).unwrap();
+
+                let rhs_type: syn::Type =
+                    syn::parse_str(&format!("RhsType{}", name)).unwrap();
+
+                quote::quote! {
+                    #op_type: op_traits::BinaryOp,
+                    #lhs_type: GetWriteableBuffer,
+                    #rhs_type: GetWriteableBuffer<Buffer = #lhs_type::Buffer>,
+                }
+            }
+        }
+    }
+
+    fn gen_ref_type(arg: &Argument) -> proc_macro2::TokenStream {
+        match arg.ref_type {
+            RefType::Own => quote::quote! {},
+            RefType::Ref => quote::quote! { &'a },
+            RefType::RefMut => quote::quote! { &'a mut },
+        }
+    }
+
+    fn gen_type(
+        arg: &Argument,
+        ref_type: &proc_macro2::TokenStream,
+        generic: &proc_macro2::TokenStream,
+    ) -> proc_macro2::TokenStream {
+        match arg.arg_type {
+            ArgumentType::ArrayBase => {
+                quote::quote! { #ref_type ArrayBase<Backend, #generic> }
+            }
+            ArgumentType::TensrFn2 => {
+                quote::quote! { #ref_type TensrFn2<'a, Backend, #generic> }
+            }
+        }
+    }
+
+    // True if the function definition requres a lifetime generic. This is not the
+    // cleanest code, but I can't think of a better way to do it that doesn't make
+    // things more complicated.
     let requires_lifetime = arguments.iter().any(|a| {
-        a.ref_type == RefType::Ref || a.arg_type == ArgumentType::TensrFn2
+        a.ref_type == RefType::Ref
+            || a.ref_type == RefType::RefMut
+            || a.arg_type == ArgumentType::TensrFn2
     });
 
+    // If one of the arguments requires a lifetime, we use 'a. If not, we don't need
+    // anything here. We add a comma to simplify the usage of this value. This allows
+    // us to write something like: <#lifetime_generic_comma Backend, ...>
     let lifetime_generic_comma = if requires_lifetime {
         quote::quote! { 'a, }
     } else {
         quote::quote! {}
     };
 
+    // A function object requires a lifetime. We use 'a if one if the inputs requires
+    // a lifetime, otherwise we use 'static.
     let output_lifetime = if requires_lifetime {
         quote::quote! { 'a }
     } else {
         quote::quote! { 'static }
     };
 
-    // TODO: Abstract this out into a function
-    let lhs_generics = match arguments[0].arg_type {
-        ArgumentType::ArrayBase => quote::quote! { StorageTypeLhs, NDimsLhs },
-        ArgumentType::TensrFn2 => {
-            quote::quote! { OpLhs, LhsTypeLhs, RhsTypeLhs }
-        }
-    };
+    let lhs_generics = gen_generics(&arguments[0], "Lhs");
+    let rhs_generics = gen_generics(&arguments[1], "Rhs");
 
-    let rhs_generics = match arguments[1].arg_type {
-        ArgumentType::ArrayBase => quote::quote! { StorageTypeRhs, NDimsRhs },
-        ArgumentType::TensrFn2 => {
-            quote::quote! { OpRhs, LhsTypeRhs, RhsTypeRhs }
-        }
-    };
+    let lhs_generic_bounds = gen_generic_bounds(&arguments[0], "Lhs");
+    let rhs_generic_bounds = gen_generic_bounds(&arguments[1], "Rhs");
 
-    // TODO: Abstract this out into a function
-    let lhs_generic_bounds = match arguments[0].arg_type {
-        ArgumentType::ArrayBase => quote::quote! {
-            StorageTypeLhs: traits::Storage,
-            NDimsLhs: Dimension,
-        },
-        ArgumentType::TensrFn2 => quote::quote! {
-            OpLhs: op_traits::BinaryOp,
-            LhsTypeLhs: GetWriteableBuffer,
-            RhsTypeLhs: GetWriteableBuffer<Buffer = LhsTypeLhs::Buffer>,
-        },
-    };
+    let lhs_ref_type = gen_ref_type(&arguments[0]);
+    let rhs_ref_type = gen_ref_type(&arguments[1]);
 
-    let rhs_generic_bounds = match arguments[1].arg_type {
-        ArgumentType::ArrayBase => quote::quote! {
-            StorageTypeRhs: traits::Storage,
-            NDimsRhs: Dimension,
-        },
-        ArgumentType::TensrFn2 => quote::quote! {
-            OpRhs: op_traits::BinaryOp,
-            LhsTypeRhs: GetWriteableBuffer,
-            RhsTypeRhs: GetWriteableBuffer<Buffer = LhsTypeRhs::Buffer>,
-        },
-    };
+    let lhs_type = gen_type(&arguments[0], &lhs_ref_type, &lhs_generics);
+    let rhs_type = gen_type(&arguments[1], &rhs_ref_type, &rhs_generics);
 
-    let lhs_ref_type = match arguments[0].ref_type {
-        RefType::Own => quote::quote! {},
-        RefType::Ref => quote::quote! { &'a },
-    };
-
-    let rhs_ref_type = match arguments[1].ref_type {
-        RefType::Own => quote::quote! {},
-        RefType::Ref => quote::quote! { &'a },
-    };
-
-    // TODO: Abstract this out into a function
-    let lhs_type = match arguments[0].arg_type {
-        ArgumentType::ArrayBase => {
-            quote::quote! { #lhs_ref_type ArrayBase<Backend, #lhs_generics> }
-        }
-        ArgumentType::TensrFn2 => {
-            quote::quote! { #lhs_ref_type TensrFn2<'a, Backend, #lhs_generics> }
-        }
-    };
-
-    let rhs_type = match arguments[1].arg_type {
-        ArgumentType::ArrayBase => {
-            quote::quote! { #rhs_ref_type ArrayBase<Backend, #rhs_generics> }
-        }
-        ArgumentType::TensrFn2 => {
-            quote::quote! { #rhs_ref_type TensrFn2<'a, Backend, #rhs_generics> }
-        }
-    };
+    let op_type_name = op_type.type_name();
+    let op_name = op_type.op_name();
+    let kernel_name = op_type.kernel_name();
 
     let result = quote::quote! {
         impl<#lifetime_generic_comma Backend, #lhs_generics, #rhs_generics>
@@ -190,6 +325,7 @@ pub fn gen_binary_op(
                 #rhs_type,
             >;
 
+            #[inline(always)]
             fn #op_name(
                 self,
                 rhs: #rhs_type,
@@ -199,7 +335,7 @@ pub fn gen_binary_op(
         }
     };
 
-    result
+    pretty_print(result)
 }
 
 pub fn gen_type_pairs(
@@ -230,27 +366,11 @@ pub fn gen_type_pairs(
     let new_types: Vec<_> = types
         .iter()
         .flat_map(|t| {
-            // Need N copies of each type
-
-            // let mut tmp = Vec::new();
-            //
-            // for _ in 0..N {
-            //     tmp.push((RefType::Own, *t));
-            // }
-            //
-            // for _ in 0..N {
-            //     tmp.push((RefType::Ref, *t));
-            // }
-            //
-            // tmp.into_iter()
-
-            [(RefType::Own, *t), (RefType::Ref, *t)]
+            [(RefType::Own, *t), (RefType::Ref, *t), (RefType::RefMut, *t)]
         })
         .collect();
 
-    // Generate all permutations of new_types
-    // new_types.into_iter().permutations(N).collect()
-
+    // Cartesian product with itself to get all valid combinations
     new_types
         .clone()
         .into_iter()
@@ -261,117 +381,63 @@ pub fn gen_type_pairs(
 pub fn gen(tok: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tok as Expr);
 
-    let mut op_type = Vec::new();
-    let mut arguments = Vec::new();
-
-    // if let Expr::Array(arr) = input {
-    //     for elem in arr.elems.into_iter() {
-    //         let stream = elem.to_token_stream().into();
-    //         let t = parse_macro_input!(stream as Argument);
-    //         arguments.push(t);
-    //     }
-    // }
-
-    // (["Add", "add", "+"], [Operands])
-    if let Expr::Tuple(tuple) = input {
-        match &tuple.elems[0] {
-            Expr::Array(arr) => {
-                for elem in arr.elems.iter() {
-                    let stream = elem.to_token_stream().into();
-                    let t = parse_macro_input!(stream as syn::LitStr);
-                    op_type.push(t);
-                }
-            }
-            _ => {
-                panic!("Expected array of arguments");
-            }
-        }
-
-        match &tuple.elems[1] {
-            Expr::Array(arr) => {
-                for elem in arr.elems.iter() {
-                    let stream = elem.to_token_stream().into();
-                    let t = parse_macro_input!(stream as Argument);
-                    arguments.push(t);
-                }
-            }
-            _ => {
-                panic!("Expected array of op types");
-            }
-        }
+    let tuple = if let Expr::Tuple(tuple) = &input {
+        tuple
     } else {
-        panic!("Expected tuple of two elements");
-    }
-
-    let result = match arguments.len() {
-        0 => quote::quote! { todo!() },
-        1 => quote::quote! { todo!() },
-        2 => gen_binary_op(&op_type, &arguments),
-        _ => quote::quote! { todo!() },
+        panic!(
+            "Expected tuple with two elements. Received {:?}",
+            input.to_token_stream().to_string()
+        );
     };
-    let result_file = syn::parse_file(&result.to_string());
 
-    if let Err(e) = result_file {
-        panic!("Error: {:?}", e);
+    let stream = tuple.elems[0].to_token_stream().into();
+    let op_type = parse_macro_input!(stream as BinaryOperation);
+
+    let array = if let Expr::Array(arr) = &tuple.elems[1] {
+        arr
+    } else {
+        panic!(
+            "Expected tuple with two elements. Received {:?}",
+            input.to_token_stream().to_string(),
+        );
+    };
+
+    // array.elems.iter() doesn't return a normal iterator, so I can't rewrite
+    // this as a map for some reason.
+    let mut arguments = Vec::new();
+    for elem in array.elems.iter() {
+        let stream = elem.to_token_stream().into();
+        let t = parse_macro_input!(stream as Argument);
+        arguments.push(t);
     }
 
-    let result = prettyplease::unparse(&result_file.unwrap());
+    if arguments.len() != 2 {
+        panic!(
+            "Expected two arguments. Received {:?}",
+            input.to_token_stream().to_string()
+        );
+    }
 
-    // Return the result as a TokenStream
-    syn::parse_file(&result.to_string()).unwrap().to_token_stream().into()
+    let result = gen_binary_op(&op_type, &arguments);
+    pretty_print(result).into()
 }
 
 pub fn gen_all(tok: TokenStream) -> TokenStream {
-    // input = ("Add", "add")
     let input = parse_macro_input!(tok as Expr);
 
-    // Parse input stream
-    let (name_cap, name_lower) = if let Expr::Tuple(tuple) = input {
-        let first = if let Expr::Lit(lit) = &tuple.elems[0] {
-            lit
-        } else {
-            panic!("Expected literal");
-        };
-
-        let second = if let Expr::Lit(lit) = &tuple.elems[1] {
-            lit
-        } else {
-            panic!("Expected literal");
-        };
-
-        (first.to_owned(), second.to_owned())
-    } else {
-        panic!("Expected tuple of two elements");
-    };
+    let stream = input.to_token_stream().into();
+    let op = parse_macro_input!(stream as BinaryOperation);
 
     let perms =
         gen_type_pairs([ArgumentType::ArrayBase, ArgumentType::TensrFn2]);
 
-    // panic!("{perms:?} | {}", perms.len());
-
     let mut result = String::new();
 
     for ((lhs_ref, lhs_type), (rhs_ref, rhs_type)) in perms {
-        // let expr = quote::quote! {
-        //     tensr_proc_macros::generate_binary_op!((
-        //         [#name_cap, #name_lower],
-        //         [
-        //             (
-        //                 #lhs_ref,
-        //                 #lhs_type
-        //             ),
-        //             (
-        //                 #rhs_ref,
-        //                 #rhs_type
-        //             )
-        //         ]
-        //     ));
-        // };
-
         let expr = format!(
             r#"
             tensr_proc_macros::generate_binary_op!((
-                [{}, {}],
+                {:?},
                 [
                     (
                         {lhs_ref:?},
@@ -384,23 +450,11 @@ pub fn gen_all(tok: TokenStream) -> TokenStream {
                 ]
             ));
         "#,
-            name_cap.to_token_stream().to_string(),
-            name_lower.to_token_stream().to_string(),
+            op,
         );
         result.push_str(&format!("{expr}\n"));
     }
 
-    // panic!("{result}");
-
-    // let result = syn::parse_str(&result).unwrap();
-
-    // Pretty print the output
-    let result = syn::parse_file(&result).unwrap();
-    let result = prettyplease::unparse(&result);
-    let parsed = syn::parse_file(&result).unwrap();
-
-    // panic!("{result}");
-
-    // Return the result as a TokenStream
-    parsed.to_token_stream().into()
+    let stream: syn::File = syn::parse_str(&result).unwrap();
+    pretty_print(stream.to_token_stream()).into()
 }
