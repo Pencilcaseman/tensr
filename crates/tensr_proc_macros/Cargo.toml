@@ -1,7 +1,17 @@
 [package]
 name = "tensr_proc_macros"
 version = "0.1.0"
+authors = ["Toby Davis <toby@tobydavis.dev>"]
+description = "Procedural macros for the Tensr multidimensional array library"
+homepage = "https://github.com/Pencilcaseman/tensr"
+repository = "https://github.com/Pencilcaseman/tensr"
+documentation = "https://docs.rs/tensr_proc_macros"
+readme = "README.md"
+keywords = ["array", "tensor", "multidimensional", "ndarray"]
+categories = ["data-structures", "science", "parallelism"]
+license = "MIT OR Apache-2.0"
 edition = "2021"
+exclude = [".github"]
 
 [dependencies]
 syn = { version = "2.0", features = ["full"] }
