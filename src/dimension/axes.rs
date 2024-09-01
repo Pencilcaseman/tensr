@@ -1,5 +1,4 @@
-use crate::dimension::dim::Dimension;
-use crate::types::DimLen;
+use crate::{dimension::dim::Dimension, types::DimLen};
 
 pub struct Axes<Dim: Dimension> {
     pub(crate) shape: Dim,

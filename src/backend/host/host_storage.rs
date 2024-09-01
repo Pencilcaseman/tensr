@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use rayon::prelude::*;
 
 use crate::{
-    array::array_traits::GetWriteableBuffer,
+    array::traits::GetWriteableBuffer,
     backend::traits::{
         ContainerLength, ContainerScalarType, ContainerStorageType,
         OwnedStorage, ScalarAccessor, ScalarWriter, Storage,
@@ -11,10 +11,11 @@ use crate::{
     dimension::dim::Dimension,
 };
 
-/// The number of bytes to align heap-allocated memory to. The largest
-/// alignment (64 bytes) is required by AVX-512, so we use this by default.
-/// Please create a pull request or an issue if there is a reason to change
-/// this value.
+/// The number of bytes to align heap-allocated memory to.
+///
+/// The largest alignment (64 bytes) is required by AVX-512,
+/// so we use this by default. Please create a pull request
+/// or an issue if there is a reason to change this value.
 pub const MEM_ALIGN: usize = 64;
 
 /// A non-null pointer which can be used in parallel blocks
@@ -61,6 +62,10 @@ where
     T: Copy,
 {
     type OwnedStorageType = Self;
+
+    fn fill(&mut self, value: Self::Scalar) {
+        (0..self.length).for_each(|i| self[i] = value);
+    }
 
     unsafe fn set_no_free(&mut self) {}
 }
@@ -112,8 +117,8 @@ where
 }
 
 impl<T> HostStorage<T> {
-    /// Create a new [`HostStorage`] object with `length` elements, all initialized to
-    /// `T::default()`.
+    /// Create a new [`HostStorage`] object with `length` elements, all
+    /// initialized to `T::default()`.
     ///
     /// # Example
     /// ```rust
@@ -157,9 +162,10 @@ impl<T> HostStorage<T> {
         }
     }
 
-    /// Create a new [`HostStorage`] object with `length` elements, not initializing the
-    /// memory. For trivial types, this might be fine, but for types which require
-    /// construction, this may cause problems if you are not careful.
+    /// Create a new [`HostStorage`] object with `length` elements, not
+    /// initializing the memory. For trivial types, this might be fine, but
+    /// for types which require construction, this may cause problems if you
+    /// are not careful.
     ///
     /// # Example
     /// ```rust
@@ -221,10 +227,11 @@ where
             .map(move |i| &self[i * slice_size..(i + 1) * slice_size])
     }
 
-    /// Create a parallel mutable slice iterator with slices of length `slice_size`.
+    /// Create a parallel mutable slice iterator with slices of length
+    /// `slice_size`.
     ///
-    /// If the length of the input is not a multiple of the slice size, the remaining
-    /// elements are ignored.
+    /// If the length of the input is not a multiple of the slice size, the
+    /// remaining elements are ignored.
     #[must_use]
     pub fn slice_mut_par_iter(
         &mut self,
@@ -559,7 +566,8 @@ mod test {
             fn $name() {
                 let n = 8196;
 
-                // Create a LOT of these and see if the system runs out of memory...
+                // Create a LOT of these and see if the system runs out of
+                // memory...
                 for _ in 0..10_000 {
                     let s = black_box(HostStorage::<$type>::new(n));
                     drop(s);

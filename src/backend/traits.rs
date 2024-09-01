@@ -12,9 +12,10 @@ macro_rules! kernel_type_repeater {
 }
 
 /// The [`Backend`] trait is used to mark structs as a valid backend for
-/// calculations. Operators should be implemented for a given backend, and
-/// must operate on (valid) data provided by the [`Backend::OwnedStorage`]
-/// type.
+/// calculations.
+///
+/// Operators should be implemented for a given backend, and must operate on
+/// (valid) data provided by the [`Backend::OwnedStorage`] type.
 pub trait Backend {
     /// A type representing an object which can allocate, manage and store
     /// memory for a given [`Backend`]. Elements are of type `T`.
@@ -25,8 +26,8 @@ pub trait Backend {
     crate::repeat_binary_ops!(kernel_type_repeater);
 }
 
-/// This trait marks an object as being a container with a length, and
-/// provides a method for accessing the length.
+/// This trait marks an object as being a container with a length, and provides
+/// a method for accessing the length.
 pub trait ContainerLength {
     /// Returns the length of the container
     fn len(&self) -> usize;
@@ -38,20 +39,19 @@ pub trait ContainerLength {
     }
 }
 
-/// This trait provides access to the scalar type of the container. For
-/// example, a [`Vec<u32>`] has a scalar type of `u32`.
+/// This trait provides access to the scalar type of the container. For example,
+/// a [`Vec<u32>`] has a scalar type of `u32`.
 ///
-/// ## Note
-/// Note that this trait may not be implemented for standard library
-/// containers
+///## Note
+/// Note that this trait may not be implemented for standard library containers
 pub trait ContainerScalarType {
     /// The scalar type of the container
     type Scalar: Copy;
 }
 
-/// This trait marks an object as having a storage type. For example,
-/// an [`ArrayBase`] may have a storage type of [`HostStorage`], which
-/// stores data on the host.
+/// This trait marks an object as having a storage type. For example, an
+/// [`ArrayBase`] may have a storage type of [`HostStorage`], which stores data
+/// on the host.
 pub trait ContainerStorageType: ContainerLength + ContainerScalarType {
     /// The storage type of the container
     type Storage: Storage;
@@ -71,8 +71,8 @@ pub trait MutableContainerStorageAccessor:
     fn get_storage_mut(&mut self) -> &mut Self::Storage;
 }
 
-/// Marks a struct as depending on a given backend. Generally, only structs
-/// with the same backend can be used together.
+/// Marks a struct as depending on a given backend. Generally, only structs with
+/// the same backend can be used together.
 pub trait ContainerBackendType: ContainerStorageType {
     type Backend: Backend;
 }
@@ -88,6 +88,8 @@ pub trait Storage:
     /// The equivalent storage type, but which owns the data it stores
     type OwnedStorageType: OwnedStorage;
 
+    fn fill(&mut self, value: Self::Scalar);
+
     /// Mark the data to not be freed when the main object is dropped. This is
     /// necessary for preventing invalid memory accesses when reusing the same
     /// storage object.
@@ -101,15 +103,32 @@ pub trait Storage:
 /// case, the data must be stored contiguously and must be paired with a
 /// backend.
 pub trait OwnedStorage: Storage {
-    /// The raw type of the data stored by this object. For example, this may
-    /// be a pointer to the underlying data.
+    /// The raw type of the data stored by this object. For example, this may be
+    /// a pointer to the underlying data.
     type Raw;
 
+    /// Create a new storage object with the given shape and fill it with the
+    /// default value for the type.
     fn new_from_shape<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension,
         Self::Scalar: Default;
 
+    /// Create a new storage object with the given shape, but do not initialize
+    /// the data.
+    ///
+    /// # Safety
+    /// The data is not safe to read until it has been initialized, so the
+    /// caller must ensure that the existing data is overwritten before it is
+    /// read from.
+    ///
+    /// Normally, if you know what you're doing, this is not a problem. Just be
+    /// aware that, even if you initialize some of the data, it is still not
+    /// safe to read from the entire array or to perform operations on it.
+    ///
+    /// # Performance
+    /// Because the data is not initialized, this method can be significantly
+    /// faster than [`new_from_shape`] in cases where it is safe to use.
     unsafe fn new_from_shape_uninit<Dim>(shape: &Dim) -> Self
     where
         Dim: Dimension;
@@ -117,8 +136,8 @@ pub trait OwnedStorage: Storage {
     /// Return a pointer to the underlying data.
     ///
     /// # Safety
-    /// The caller must ensure that the pointer is valid for the lifetime of
-    /// the object and that immutable data is not written to.
+    /// The caller must ensure that the pointer is valid for the lifetime of the
+    /// object and that immutable data is not written to.
     unsafe fn get_raw(&self) -> Self::Raw;
 }
 
@@ -130,6 +149,7 @@ pub trait ScalarAccessor: ContainerLength + ContainerScalarType {
 
 /// Allows writing scalar values to a container.
 pub trait ScalarWriter: ContainerLength + ContainerScalarType {
-    /// Write a value to the `index`'th element of a data container or wrapper
+    /// Write a value to the `index`'th element of a data container or
+    /// wrapper
     fn write_scalar(&mut self, value: Self::Scalar, index: usize);
 }

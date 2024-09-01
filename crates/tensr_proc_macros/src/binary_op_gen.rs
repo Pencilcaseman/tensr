@@ -6,6 +6,17 @@ use syn::{
     parse_macro_input, Expr,
 };
 
+/// Reformat a token stream for better error messages and debugging
+///
+/// # Arguments
+/// * `tokens` - The token stream to reformat
+///
+/// # Returns
+/// * The reformatted token stream
+///
+/// # Panics
+/// * If the token stream cannot be parsed
+/// * If the token stream is not valid rust code
 #[track_caller]
 fn pretty_print(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     let stream = match syn::parse_str::<syn::File>(&tokens.to_string()) {
@@ -24,9 +35,10 @@ fn pretty_print(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
         }
     };
 
-    parsed.to_token_stream().into()
+    parsed.to_token_stream()
 }
 
+/// A struct representing the available binary operations
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum BinaryOperation {
     Add,
@@ -36,6 +48,8 @@ pub enum BinaryOperation {
 }
 
 impl BinaryOperation {
+    /// Return the typename of the binary operation. This is the
+    /// name of the standard library [`std::ops`] trait.
     pub fn type_name(&self) -> proc_macro2::TokenStream {
         match self {
             BinaryOperation::Add => quote::quote! { Add },
@@ -45,6 +59,8 @@ impl BinaryOperation {
         }
     }
 
+    /// Returns the function name of the binary operation. This is
+    /// the function call in the standard library [`std::ops`] trait.
     pub fn op_name(&self) -> proc_macro2::TokenStream {
         match self {
             BinaryOperation::Add => quote::quote! { add },
@@ -54,6 +70,9 @@ impl BinaryOperation {
         }
     }
 
+    /// Returns the name of the kernel for the binary operation. The
+    /// kernel name is part of the [`Backend`] trait used in the main
+    /// [`tensr`] crate.
     pub fn kernel_name(&self) -> proc_macro2::TokenStream {
         match self {
             BinaryOperation::Add => quote::quote! { AddKernel },
@@ -146,7 +165,9 @@ impl ToTokens for ArgumentType {
     }
 }
 
-/// A struct used to process macro arguments.
+/// A struct used to process macro arguments. It stores a [`RefType`]
+/// and an [`ArgumentType`] and represents a possible argument to
+/// a Tensr function.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Argument {
     pub ref_type: RefType,
@@ -167,8 +188,8 @@ impl Parse for Argument {
             ));
         };
 
-        let first = tuple.elems[0].to_token_stream().into();
-        let second = tuple.elems[1].to_token_stream().into();
+        let first = tuple.elems[0].to_token_stream();
+        let second = tuple.elems[1].to_token_stream();
 
         let ref_type: RefType = syn::parse2(first)?;
         let arg_type: ArgumentType = syn::parse2(second)?;
@@ -177,10 +198,38 @@ impl Parse for Argument {
     }
 }
 
+/// Implements a binary operation for a given pair of arguments. The return
+/// type is a lazily evaluated function object.
+///
+/// # Arguments
+/// * `op_type` - The binary operation to implement
+/// * `arguments` - The argument types for the function
+///
+/// # Returns
+/// * The token stream for the trait implementation
 pub fn gen_binary_op(
     op_type: &BinaryOperation,
     arguments: &[Argument],
 ) -> proc_macro2::TokenStream {
+    /// TODO: Refactor into a method of the argument struct?
+    /// Generate the generic types for a given input argument type.
+    ///
+    /// # Types
+    /// ## `ArrayBase`
+    /// * `StorageType${name}`
+    /// * `NDims${name}`
+    ///
+    /// ## `TensrFn2`
+    /// * `Op${name}`
+    /// * `LhsType${name}`
+    /// * `RhsType${name}`
+    ///
+    /// # Arguments
+    /// * `arg` - The type to generate the generics for
+    /// * `name` - The name variant of the argument
+    ///
+    /// # Returns
+    /// * The token stream for the generics
     fn gen_generics(arg: &Argument, name: &str) -> proc_macro2::TokenStream {
         match arg.arg_type {
             ArgumentType::ArrayBase => {
@@ -207,6 +256,24 @@ pub fn gen_binary_op(
         }
     }
 
+    /// Generate the generic trait bounds for a given input type.
+    ///
+    /// # Types
+    /// ## `ArrayBase`
+    /// * `StorageType${name}: traits::Storage`
+    /// * `NDims${name}: Dimension`
+    ///
+    /// ## `TensrFn2`
+    /// * `Op${name}: op_traits::BinaryOp`
+    /// * `LhsType${name}: GetWriteableBuffer`
+    /// * `RhsType${name}: GetWriteableBuffer<Buffer = LhsType${name}::Buffer>`
+    ///
+    /// # Arguments
+    /// * `arg` - The type to generate the generic bounds for
+    /// * `name` - The name variant of the argument
+    ///
+    /// # Returns
+    /// * The token stream for the generic bounds
     fn gen_generic_bounds(
         arg: &Argument,
         name: &str,
@@ -243,6 +310,9 @@ pub fn gen_binary_op(
         }
     }
 
+    /// Generate the reference type for a given argument. For an owned type,
+    /// this is empty. For a reference, a lifetime is required, giving `&'a`.
+    /// A mutable reference also requires a lifetime, giving `&'a mut`.
     fn gen_ref_type(arg: &Argument) -> proc_macro2::TokenStream {
         match arg.ref_type {
             RefType::Own => quote::quote! {},
@@ -251,6 +321,8 @@ pub fn gen_binary_op(
         }
     }
 
+    /// Generate the whole type for a given argument. This is a complete type
+    /// with reference identifier, lifetime and generics.
     fn gen_type(
         arg: &Argument,
         ref_type: &proc_macro2::TokenStream,
@@ -266,26 +338,27 @@ pub fn gen_binary_op(
         }
     }
 
-    // True if the function definition requres a lifetime generic. This is not the
-    // cleanest code, but I can't think of a better way to do it that doesn't make
-    // things more complicated.
+    // True if the function definition requres a lifetime generic. This is not
+    // the cleanest code, but I can't think of a better way to do it that
+    // doesn't make things more complicated.
     let requires_lifetime = arguments.iter().any(|a| {
         a.ref_type == RefType::Ref
             || a.ref_type == RefType::RefMut
             || a.arg_type == ArgumentType::TensrFn2
     });
 
-    // If one of the arguments requires a lifetime, we use 'a. If not, we don't need
-    // anything here. We add a comma to simplify the usage of this value. This allows
-    // us to write something like: <#lifetime_generic_comma Backend, ...>
+    // If one of the arguments requires a lifetime, we use 'a. If not, we don't
+    // need anything here. We add a comma to simplify the usage of this
+    // value. This allows us to write something like:
+    // <#lifetime_generic_comma Backend, ...>
     let lifetime_generic_comma = if requires_lifetime {
         quote::quote! { 'a, }
     } else {
         quote::quote! {}
     };
 
-    // A function object requires a lifetime. We use 'a if one if the inputs requires
-    // a lifetime, otherwise we use 'static.
+    // A function object requires a lifetime. We use 'a if one if the inputs
+    // requires a lifetime, otherwise we use 'static.
     let output_lifetime = if requires_lifetime {
         quote::quote! { 'a }
     } else {
@@ -338,6 +411,8 @@ pub fn gen_binary_op(
     pretty_print(result)
 }
 
+/// Generate all possible combinations from a pair of argument types,
+/// including owned, reference and mutable reference types.
 pub fn gen_type_pairs(
     types: [ArgumentType; 2],
 ) -> Vec<((RefType, ArgumentType), (RefType, ArgumentType))> {
@@ -371,13 +446,10 @@ pub fn gen_type_pairs(
         .collect();
 
     // Cartesian product with itself to get all valid combinations
-    new_types
-        .clone()
-        .into_iter()
-        .cartesian_product(new_types.into_iter())
-        .collect()
+    new_types.clone().into_iter().cartesian_product(new_types).collect()
 }
 
+/// Generate a binary operation implementation for a pair of argumets.
 pub fn gen(tok: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tok as Expr);
 
@@ -422,6 +494,8 @@ pub fn gen(tok: TokenStream) -> TokenStream {
     pretty_print(result).into()
 }
 
+/// Generate all possible implementations of a binary operation for the
+/// available input types.
 pub fn gen_all(tok: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tok as Expr);
 

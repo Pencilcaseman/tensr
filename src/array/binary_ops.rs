@@ -1,7 +1,6 @@
 use crate::{
     array::{
-        array_base::ArrayBase, array_traits::GetWriteableBuffer,
-        function_2::TensrFn2,
+        base::ArrayBase, function_2::TensrFn2, traits::GetWriteableBuffer,
     },
     backend::{op_traits, traits},
     dimension::dim::Dimension,

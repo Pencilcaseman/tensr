@@ -1,9 +1,12 @@
+use num_traits::{One, Zero};
+
 use crate::{
-    array::array_traits::GetWriteableBuffer,
+    array::traits::GetWriteableBuffer,
     backend::{host::host_backend::HostBackend, traits},
     dimension::{axes::Axes, dim::Dimension},
 };
 
+#[allow(clippy::module_name_repetitions)]
 /// The base type for all arrays. This type should not be used directly -- it is
 /// used through various type aliases to make the API more ergonomic.
 pub struct ArrayBase<
@@ -57,6 +60,39 @@ where
     {
         let storage = StorageType::new_from_shape_uninit(&shape);
         Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
+    }
+
+    pub fn zeros(shape: NDims) -> Self
+    where
+        StorageType: traits::OwnedStorage,
+        StorageType::Scalar: Zero,
+    {
+        let mut storage = unsafe { StorageType::new_from_shape_uninit(&shape) };
+        storage.fill(StorageType::Scalar::zero());
+        Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
+    }
+
+    pub fn ones(shape: NDims) -> Self
+    where
+        StorageType: traits::OwnedStorage,
+        StorageType::Scalar: One,
+    {
+        let mut storage = unsafe { StorageType::new_from_shape_uninit(&shape) };
+        storage.fill(StorageType::Scalar::one());
+        Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
+    }
+
+    pub fn new_with(shape: NDims, value: StorageType::Scalar) -> Self
+    where
+        StorageType: traits::OwnedStorage,
+    {
+        let mut storage = unsafe { StorageType::new_from_shape_uninit(&shape) };
+        storage.fill(value);
+        Self::new(Axes::<NDims>::new_with_default_stride(shape), storage)
+    }
+
+    pub fn fill(&mut self, value: StorageType::Scalar) {
+        self.storage.fill(value);
     }
 
     /// Get the dimensions of the array
@@ -261,15 +297,6 @@ where
     type Backend = Backend;
 }
 
-// impl<Backend, StorageType, NDims> traits::LazyArrayObject
-//     for ArrayBase<Backend, StorageType, NDims>
-// where
-//     Backend: traits::Backend,
-//     StorageType: traits::Storage,
-//     NDims: Dimension,
-// {
-// }
-
 impl<Backend, StorageType, NDims> GetWriteableBuffer
     for ArrayBase<Backend, StorageType, NDims>
 where
@@ -323,6 +350,7 @@ where
         &mut self,
         _: usize,
     ) -> Option<Self::Buffer> {
+        // We don't own it, but we can mutate it, so this is fine
         self.storage.get_buffer_and_set_no_free(self.storage.len())
     }
 }

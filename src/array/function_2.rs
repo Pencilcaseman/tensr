@@ -1,9 +1,12 @@
-use crate::array::array_traits::GetWriteableBuffer;
-use crate::backend::op_traits;
-use crate::backend::traits;
-use crate::backend::traits::ContainerLength;
-use crate::backend::traits::ContainerScalarType;
 use std::marker::PhantomData;
+
+use crate::{
+    array::traits::GetWriteableBuffer,
+    backend::{
+        op_traits, traits,
+        traits::{ContainerLength, ContainerScalarType},
+    },
+};
 
 pub trait Function2<Out> {
     fn apply(&self, out: &mut Out);
@@ -53,7 +56,7 @@ where
 }
 
 impl<'a, Backend, Op, Lhs, Rhs> TensrFn2<'a, Backend, Op, Lhs, Rhs> {
-    pub fn new(lhs: Lhs, rhs: Rhs) -> Self {
+    pub const fn new(lhs: Lhs, rhs: Rhs) -> Self {
         Self {
             lhs,
             rhs,
@@ -80,7 +83,7 @@ where
     ) -> Option<Self::Buffer> {
         self.lhs
             .get_buffer_and_set_no_free(len)
-            .or(self.rhs.get_buffer_and_set_no_free(len))
+            .or_else(|| self.rhs.get_buffer_and_set_no_free(len))
     }
 }
 
@@ -96,8 +99,28 @@ where
 
     unsafe fn get_buffer_and_set_no_free(
         &mut self,
-        len: usize,
+        _len: usize,
     ) -> Option<Self::Buffer> {
         None
+    }
+}
+
+impl<'a, Backend, Op, Lhs, Rhs> GetWriteableBuffer
+    for &'a mut TensrFn2<'a, Backend, Op, Lhs, Rhs>
+where
+    Backend: traits::Backend,
+    Op: op_traits::BinaryOp,
+    Lhs: GetWriteableBuffer,
+    Rhs: GetWriteableBuffer<Buffer = Lhs::Buffer>,
+{
+    type Buffer = Lhs::Buffer;
+
+    unsafe fn get_buffer_and_set_no_free(
+        &mut self,
+        len: usize,
+    ) -> Option<Self::Buffer> {
+        self.lhs
+            .get_buffer_and_set_no_free(len)
+            .or_else(|| self.rhs.get_buffer_and_set_no_free(len))
     }
 }

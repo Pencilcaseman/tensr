@@ -3,7 +3,7 @@ use crate::types::{DimLen, UDim};
 #[macro_export]
 macro_rules! repeat_for_dims {
     ($macro: tt) => {
-        $macro!(0, 1, 2, 3, 4, 5, 6, 7, 8);
+        $macro!(1, 2, 3, 4, 5, 6, 7, 8);
     };
 }
 
@@ -135,9 +135,9 @@ mod test {
 
                         assert_eq!(dim.ndim(), $dim);
 
-                        for i in 0..$dim {
-                            assert_eq!(dim.get()[i], i + 1);
-                            assert_eq!(dim[i as DimLen], i + 1);
+                        for i in 0 as DimLen..$dim {
+                            assert_eq!(dim.get()[i as usize], (i + 1) as UDim);
+                            assert_eq!(dim[i], (i + 1) as UDim);
                         }
                     }
                 }
@@ -159,9 +159,9 @@ mod test {
 
                         assert_eq!(dim.ndim(), $dim);
 
-                        for i in 0..$dim {
-                            assert_eq!(dim.get()[i], i + 1);
-                            assert_eq!(dim[i as DimLen], i + 1);
+                        for i in 0 as DimLen..$dim {
+                            assert_eq!(dim.get()[i as usize], (i + 1) as UDim);
+                            assert_eq!(dim[i], (i + 1) as UDim);
                         }
 
                         unsafe {
@@ -170,9 +170,9 @@ mod test {
                             }
                         }
 
-                        for i in 0..$dim {
-                            assert_eq!(dim.get()[i], i + 2);
-                            assert_eq!(dim[i as DimLen], i + 2);
+                        for i in 0 as DimLen..$dim {
+                            assert_eq!(dim.get()[i as usize], (i + 2) as UDim);
+                            assert_eq!(dim[i], (i + 2) as UDim);
                         }
                     }
                 }

@@ -19,6 +19,7 @@ exclude = [".github"]
 tensr_proc_macros = { path = "crates/tensr_proc_macros", version = "0.1.0" }
 paste = "1.0"
 rayon = "1.10.0"
+num-traits = { version = "0.2.19", features = ["i128"] }
 
 [workspace]
 members = ["crates/*"]
@@ -41,4 +42,4 @@ inline_always = { level = "allow", priority = 1 }
 
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
-missing_docs = { level = "warn", priority = -2 }
+missing_docs = { level = "warn", priority = 2 }
