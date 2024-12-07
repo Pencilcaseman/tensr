@@ -33,7 +33,7 @@ jobs:
 
       - name: Zip Source Code
         run: |
-          zip -r tensr.zip ../sccmod
+          zip -r tensr.zip ../tensr
 
       - name: Create GitHub Release
         uses: "marvinpinto/action-automatic-releases@latest"
