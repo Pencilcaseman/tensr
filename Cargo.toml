@@ -1,6 +1,6 @@
 [package]
 name = "tensr"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Toby Davis <toby@tobydavis.dev>"]
 description = "A high-performance, cross-platform, multi-backend tensor/array library for Rust"
 homepage = "https://github.com/Pencilcaseman/tensr"
