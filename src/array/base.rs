@@ -45,7 +45,7 @@ where
     ///
     /// ```rust
     /// // TODO: Refactor some of this into a single prelude
-    /// use tensr::array::array_base::ArrayBase;
+    /// use tensr::array::base::ArrayBase;
     /// use tensr::dimension::dim::Dim2;
     /// use tensr::backend::host::host_storage::HostStorage;
     /// use tensr::backend::host::host_backend::HostBackend;
