@@ -28,7 +28,10 @@ macro_rules! repeat_kernel_repeater {
 pub struct HostBackend;
 
 impl Backend for HostBackend {
-    type OwnedStorage<T> = HostStorage<T> where T: Copy;
+    type OwnedStorage<T>
+        = HostStorage<T>
+    where
+        T: Copy;
     crate::repeat_binary_ops!(kernel_repeater);
     // repeat_kernel_repeater!(crate:array_binary_ops!());
     // repeat_kernel_repeater!([Add, add, +]);
