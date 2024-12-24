@@ -35,11 +35,9 @@ jobs:
         run: |
           zip -r tensr.zip ../tensr
 
-      - name: Create GitHub Release
-        uses: "marvinpinto/action-automatic-releases@latest"
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
           files: |
             tensr.zip
             README.md

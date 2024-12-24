@@ -6,9 +6,9 @@ use crate::{
     dimension::{axes::Axes, dim::Dimension},
 };
 
-#[allow(clippy::module_name_repetitions)]
 /// The base type for all arrays. This type should not be used directly -- it is
 /// used through various type aliases to make the API more ergonomic.
+#[allow(clippy::module_name_repetitions)]
 pub struct ArrayBase<
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -118,8 +118,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerLength
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerLength
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -130,8 +130,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerLength
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerLength
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -152,8 +152,8 @@ where
     type Scalar = StorageType::Scalar;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerScalarType
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerScalarType
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -162,8 +162,8 @@ where
     type Scalar = StorageType::Scalar;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerScalarType
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerScalarType
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -182,8 +182,8 @@ where
     type Storage = StorageType;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerStorageType
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerStorageType
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -192,8 +192,8 @@ where
     type Storage = StorageType;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerStorageType
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerStorageType
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -228,8 +228,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerStorageAccessor
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerStorageAccessor
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -241,8 +241,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerStorageAccessor
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerStorageAccessor
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -254,8 +254,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> traits::MutableContainerStorageAccessor
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::MutableContainerStorageAccessor
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -277,8 +277,8 @@ where
     type Backend = Backend;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerBackendType
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerBackendType
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -287,8 +287,8 @@ where
     type Backend = Backend;
 }
 
-impl<'a, Backend, StorageType, NDims> traits::ContainerBackendType
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> traits::ContainerBackendType
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage,
@@ -316,8 +316,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> GetWriteableBuffer
-    for &'a ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> GetWriteableBuffer
+    for &ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage + GetWriteableBuffer,
@@ -336,8 +336,8 @@ where
     }
 }
 
-impl<'a, Backend, StorageType, NDims> GetWriteableBuffer
-    for &'a mut ArrayBase<Backend, StorageType, NDims>
+impl<Backend, StorageType, NDims> GetWriteableBuffer
+    for &mut ArrayBase<Backend, StorageType, NDims>
 where
     Backend: traits::Backend,
     StorageType: traits::Storage + GetWriteableBuffer,
@@ -379,8 +379,8 @@ where
     }
 }
 
-impl<'a, StorageType, NDims> traits::ScalarAccessor
-    for &'a ArrayBase<HostBackend, StorageType, NDims>
+impl<StorageType, NDims> traits::ScalarAccessor
+    for &ArrayBase<HostBackend, StorageType, NDims>
 where
     StorageType: traits::Storage,
     NDims: Dimension,
@@ -391,8 +391,8 @@ where
     }
 }
 
-impl<'a, StorageType, NDims> traits::ScalarAccessor
-    for &'a mut ArrayBase<HostBackend, StorageType, NDims>
+impl<StorageType, NDims> traits::ScalarAccessor
+    for &mut ArrayBase<HostBackend, StorageType, NDims>
 where
     StorageType: traits::Storage,
     NDims: Dimension,
@@ -403,8 +403,8 @@ where
     }
 }
 
-impl<'a, StorageType, NDims> traits::ScalarWriter
-    for &'a mut ArrayBase<HostBackend, StorageType, NDims>
+impl<StorageType, NDims> traits::ScalarWriter
+    for &mut ArrayBase<HostBackend, StorageType, NDims>
 where
     StorageType: traits::Storage,
     NDims: Dimension,

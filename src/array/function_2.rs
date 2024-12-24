@@ -20,8 +20,8 @@ pub struct TensrFn2<'a, Backend, Op, Lhs, Rhs> {
     lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a, Backend, Op, Lhs, Rhs> ContainerScalarType
-    for TensrFn2<'a, Backend, Op, Lhs, Rhs>
+impl<Backend, Op, Lhs, Rhs> ContainerScalarType
+    for TensrFn2<'_, Backend, Op, Lhs, Rhs>
 where
     Backend: traits::Backend,
     Op: op_traits::BinaryOp,
@@ -42,8 +42,8 @@ where
     type Scalar = Lhs::Scalar;
 }
 
-impl<'a, Backend, Op, Lhs, Rhs> ContainerLength
-    for TensrFn2<'a, Backend, Op, Lhs, Rhs>
+impl<Backend, Op, Lhs, Rhs> ContainerLength
+    for TensrFn2<'_, Backend, Op, Lhs, Rhs>
 where
     Backend: traits::Backend,
     Op: op_traits::BinaryOp,
@@ -55,7 +55,7 @@ where
     }
 }
 
-impl<'a, Backend, Op, Lhs, Rhs> TensrFn2<'a, Backend, Op, Lhs, Rhs> {
+impl<Backend, Op, Lhs, Rhs> TensrFn2<'_, Backend, Op, Lhs, Rhs> {
     pub const fn new(lhs: Lhs, rhs: Rhs) -> Self {
         Self {
             lhs,
@@ -67,8 +67,8 @@ impl<'a, Backend, Op, Lhs, Rhs> TensrFn2<'a, Backend, Op, Lhs, Rhs> {
     }
 }
 
-impl<'a, Backend, Op, Lhs, Rhs> GetWriteableBuffer
-    for TensrFn2<'a, Backend, Op, Lhs, Rhs>
+impl<Backend, Op, Lhs, Rhs> GetWriteableBuffer
+    for TensrFn2<'_, Backend, Op, Lhs, Rhs>
 where
     Backend: traits::Backend,
     Op: op_traits::BinaryOp,
